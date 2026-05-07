@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LS2 — Relatório de Suporte</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #0f0f0f;
+    --muted: #6b6b6b;
+    --light: #f4f3ef;
+    --border: #d8d6ce;
+    --white: #ffffff;
+    --amber-bg: #faeeda; --amber: #854f0b;
+    --blue-bg: #e6f1fb;  --blue: #185fa5;
+    --green-bg: #eaf3de; --green: #3b6d11;
+    --red-bg: #fcebeb;   --red: #a32d2d;
+    --purple-bg: #eeedfe;--purple: #3c3489;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+
+  body { font-family: var(--sans); background: #f0ede6; min-height: 100vh; padding: 2rem 1rem; }
+
+  /* ── UPLOAD STATE ── */
+  .upload-screen {
+    max-width: 560px; margin: 6vh auto; text-align: center;
+  }
+  .upload-logo { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 2rem; }
+  .upload-title { font-size: 28px; font-weight: 500; color: var(--ink); margin-bottom: 0.5rem; line-height: 1.2; }
+  .upload-sub { font-size: 13px; color: var(--muted); margin-bottom: 2.5rem; line-height: 1.6; }
+  .drop-zone {
+    border: 1.5px dashed var(--border); border-radius: 12px; padding: 3rem 2rem;
+    cursor: pointer; transition: border-color 0.2s, background 0.2s; background: var(--white);
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--ink); background: var(--light); }
+  .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-icon { font-size: 32px; margin-bottom: 1rem; opacity: 0.4; }
+  .drop-label { font-size: 14px; font-weight: 500; color: var(--ink); margin-bottom: 0.25rem; }
+  .drop-hint { font-size: 12px; color: var(--muted); }
+  .upload-note { margin-top: 1.5rem; font-size: 11px; color: var(--muted); line-height: 1.6; }
+  .upload-note strong { color: var(--ink); font-weight: 500; }
+  .demo-btn {
+    margin-top: 1.5rem; display: inline-block; font-size: 12px; color: var(--blue);
+    cursor: pointer; text-decoration: underline; background: none; border: none;
+    font-family: var(--sans);
+  }
+
+  /* ── REPORT ── */
+  .report { display: none; max-width: 860px; margin: 0 auto; }
+  .report.visible { display: block; }
+
+  .report-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+  .report-header-left {}
+  .report-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 0.3rem; }
+  .report-title { font-size: 32px; font-weight: 500; color: var(--ink); line-height: 1.1; }
+  .report-sub { font-size: 12px; color: var(--muted); margin-top: 0.3rem; }
+  .back-btn {
+    font-size: 11px; color: var(--muted); cursor: pointer; background: none; border: none;
+    font-family: var(--sans); padding: 6px 12px; border: 0.5px solid var(--border);
+    border-radius: 6px; transition: background 0.15s;
+  }
+  .back-btn:hover { background: var(--light); }
+
+  hr.heavy { border: none; border-top: 1.5px solid var(--ink); margin: 0.75rem 0 1.25rem; }
+  hr.light { border: none; border-top: 0.5px solid var(--border); margin: 0.5rem 0 0.75rem; }
+
+  .section-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.07em; color: var(--muted);
+    font-weight: 500; margin-bottom: 0.5rem; margin-top: 1.25rem;
+  }
+
+  /* METRICS */
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 1.25rem; }
+  .metric { background: var(--light); border-radius: 8px; padding: 0.875rem 1rem; }
+  .metric-label { font-size: 9px; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.3rem; font-weight: 500; text-transform: uppercase; font-family: var(--mono); }
+  .metric-value { font-size: 28px; font-weight: 500; color: var(--ink); line-height: 1; }
+  .metric-sub { font-size: 10px; color: var(--muted); margin-top: 0.25rem; }
+
+  /* TWO COL */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+
+  /* CARDS */
+  .card { background: var(--white); border: 0.5px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .card-head { background: var(--light); padding: 0.625rem 0.875rem; border-bottom: 0.5px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 12px; font-weight: 500; color: var(--ink); }
+  .card-body { padding: 0.75rem 0.875rem; }
+
+  /* BAR ROWS */
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .bar-row:last-child { margin-bottom: 0; }
+  .bar-lbl { font-size: 11px; color: var(--muted); width: 130px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; height: 4px; background: var(--light); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; }
+  .bar-num { font-size: 11px; color: var(--muted); width: 22px; text-align: right; flex-shrink: 0; font-family: var(--mono); }
+
+  /* STATUS GRID */
+  .status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .status-cell { background: var(--light); border-radius: 6px; padding: 0.5rem 0.25rem; text-align: center; }
+  .status-num { font-size: 20px; font-weight: 500; color: var(--ink); font-family: var(--mono); }
+  .status-lbl { font-size: 9px; color: var(--muted); letter-spacing: 0.03em; margin-top: 1px; }
+
+  /* INSIGHT BOX */
+  .insight { background: var(--light); border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 10.5px; color: var(--muted); line-height: 1.6; margin-top: 0.625rem; }
+
+  /* CAT GRID */
+  .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+
+  /* FORE */
+  .fore-card { background: var(--white); border: 0.5px solid var(--border); border-radius: 10px; padding: 0.875rem; margin-bottom: 1rem; }
+  .fore-metrics { display: grid; grid-template-columns: auto auto auto 1fr; gap: 8px; align-items: start; }
+  .fore-metric { background: var(--light); border-radius: 6px; padding: 0.625rem 0.875rem; min-width: 120px; }
+  .fore-label { font-size: 9px; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 0.25rem; text-transform: uppercase; font-family: var(--mono); }
+  .fore-value { font-size: 20px; font-weight: 500; color: var(--ink); font-family: var(--mono); }
+  .fore-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* OBS */
+  .obs-row { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+  .obs-row:last-child { border-bottom: none; }
+  .obs-tag { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 99px; flex-shrink: 0; margin-top: 1px; font-family: var(--mono); }
+  .obs-text { font-size: 11.5px; color: var(--ink); line-height: 1.55; }
+  .obs-text strong { font-weight: 500; }
+
+  .footer-row { display: flex; justify-content: space-between; padding-top: 0.75rem; border-top: 0.5px solid var(--border); margin-top: 0.5rem; }
+  .footer-txt { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+
+  @media (max-width: 640px) {
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+    .two-col, .cat-grid { grid-template-columns: 1fr; }
+    .fore-metrics { grid-template-columns: 1fr 1fr; }
+    .report-title { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- UPLOAD STATE -->
+<div class="upload-screen" id="uploadScreen">
+  <div class="upload-logo">LANDSCAPEOS 2 — SUPORTE</div>
+  <h1 class="upload-title">Relatório<br>mensal</h1>
+  <p class="upload-sub">Faça o export do Drag.app (Daily Cards CSV)<br>e carregue aqui para gerar o relatório automaticamente.</p>
+
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="csvInput" accept=".csv">
+    <div class="drop-icon">⌗</div>
+    <div class="drop-label">Arraste o CSV ou clique para selecionar</div>
+    <div class="drop-hint">Export → Daily Cards — Drag.app</div>
+  </div>
+
+  <p class="upload-note">
+    <strong>Como exportar do Drag:</strong> abra o board de suporte →
+    clique nos três pontos → Export → Daily Cards CSV.
+    O arquivo deve conter as colunas CARD NAME, TAGS e COLOR.
+  </p>
+  <button class="demo-btn" id="demoBtn">Ver com dados de abril 2026 (demo)</button>
+</div>
+
+<!-- REPORT -->
+<div class="report" id="report">
+  <div class="report-header">
+    <div class="report-header-left">
+      <div class="report-eyebrow">LANDSCAPEOS 2 — RELATÓRIO DE SUPORTE</div>
+      <div class="report-title" id="rTitle">Abril 2026</div>
+      <div class="report-sub" id="rSub">Carregando...</div>
+    </div>
+    <button class="back-btn" id="backBtn">← novo arquivo</button>
+  </div>
+  <hr class="heavy">
+
+  <!-- METRICS -->
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">Itens no inbox</div><div class="metric-value" id="mTotal">—</div><div class="metric-sub">volume total</div></div>
+    <div class="metric"><div class="metric-label">Interações reais</div><div class="metric-value" id="mReal">—</div><div class="metric-sub">após filtrar ruído</div></div>
+    <div class="metric"><div class="metric-label">Tickets fechados</div><div class="metric-value" id="mClosed">—</div><div class="metric-sub" id="mClosedSub">—</div></div>
+    <div class="metric"><div class="metric-label">Bugs confirmados</div><div class="metric-value" id="mBugs">—</div><div class="metric-sub">identificados</div></div>
+  </div>
+
+  <!-- COMPOSIÇÃO -->
+  <div class="section-label">COMPOSIÇÃO DO INBOX</div>
+  <hr class="light">
+  <div class="two-col">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Ruído filtrado</span>
+        <span style="font-size:11px;color:var(--muted);font-family:var(--mono);" id="noiseTotal">—</span>
+      </div>
+      <div class="card-body" id="noiseBars"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Status dos tickets reais</span></div>
+      <div class="card-body">
+        <div class="status-grid" id="statusGrid"></div>
+        <div class="insight" id="statusInsight"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CATEGORIAS -->
+  <div class="section-label">CATEGORIAS — TICKETS DE PRODUTO <span id="catSubLabel" style="font-weight:400;text-transform:none;letter-spacing:0;"></span></div>
+  <hr class="light">
+  <div class="cat-grid" id="catGrid"></div>
+
+  <!-- FORE -->
+  <div class="section-label">FORE — ECOSSISTEMA DE PAGAMENTOS <span id="foreSubLabel" style="font-weight:400;text-transform:none;letter-spacing:0;"></span></div>
+  <hr class="light">
+  <div class="fore-card">
+    <div class="fore-metrics" id="foreMetrics"></div>
+  </div>
+
+  <!-- OBS -->
+  <div class="section-label">OBSERVAÇÕES & PRÓXIMOS PASSOS</div>
+  <hr class="light">
+  <div class="card">
+    <div class="card-body" id="obsBlock" style="padding:0.25rem 0.875rem;"></div>
+  </div>
+
+  <div class="footer-row">
+    <span class="footer-txt" id="footerL">LS2 · Dados: Drag.app</span>
+    <span class="footer-txt" id="footerR">—</span>
+  </div>
+</div>
+
+<script>
+// ── PARSER ──────────────────────────────────────────────────
+function parseCSV(text) {
+  const rows = [];
+  let cur = '', inQ = false;
+  const cells = [];
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') { inQ = !inQ; continue; }
+    if (c === ',' && !inQ) { cells.push(cur); cur = ''; continue; }
+    if ((c === '\n' || c === '\r') && !inQ) {
+      if (c === '\r' && text[i+1] === '\n') i++;
+      cells.push(cur); cur = '';
+      rows.push([...cells]); cells.length = 0;
+      continue;
+    }
+    cur += c;
+  }
+  if (cur || cells.length) { cells.push(cur); rows.push([...cells]); }
+  return rows;
+}
+
+function analyzeCSV(raw) {
+  const rows = parseCSV(raw);
+  // Find header row
+  let headerIdx = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].includes('CARD NAME')) { headerIdx = i; break; }
+  }
+  if (headerIdx < 0) return null;
+
+  const hdr = rows[headerIdx];
+  const nameIdx = hdr.indexOf('CARD NAME');
+  const tagsIdx = hdr.indexOf('TAGS');
+  const colorIdx = hdr.indexOf('COLOR');
+
+  // Extract metadata (start/end date from rows before header)
+  let startDate = '', endDate = '';
+  for (let i = 0; i < headerIdx; i++) {
+    if (rows[i][0] === 'Start date') startDate = rows[i][1] || '';
+    if (rows[i][0] === 'End date') endDate = rows[i][1] || '';
+  }
+
+  const data = [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    const name = (r[nameIdx] || '').trim();
+    if (!name) continue;
+    const tagsRaw = (r[tagsIdx] || '').trim();
+    const color = (r[colorIdx] || '').trim();
+    const tags = tagsRaw ? tagsRaw.split('\n').map(t => t.trim()).filter(Boolean) : [];
+    data.push({ name, tags, color });
+  }
+
+  const NOISE = new Set(['TESTE', '✨ Notifications', 'EMAILS FORE']);
+  const STATUS = new Set(['✨ FYI','✨ Resolved','✨ Action required','✨ Awaiting response','TICKET FECHADO','EM ANDAMENTO','URGENTE']);
+
+  const total = data.length;
+  const noiseItems = data.filter(d => d.tags.some(t => NOISE.has(t)));
+  const realItems = data.filter(d => !d.tags.some(t => NOISE.has(t)));
+
+  // Noise breakdown
+  const noiseCounts = { 'Notif. de teste': 0, 'Emails FORE automáticos': 0, 'Notificações sistema': 0 };
+  data.forEach(d => {
+    if (d.tags.includes('TESTE')) noiseCounts['Notif. de teste']++;
+    if (d.tags.includes('EMAILS FORE')) noiseCounts['Emails FORE automáticos']++;
+    if (d.tags.includes('✨ Notifications')) noiseCounts['Notificações sistema']++;
+  });
+
+  // Status
+  const statusCounts = { 'FECHADO': 0, 'RESOLVED': 0, 'ACTION REQ.': 0, 'FYI': 0, 'SEM STATUS': 0, 'AGUARDANDO': 0 };
+  realItems.forEach(d => {
+    if (d.tags.includes('TICKET FECHADO')) statusCounts['FECHADO']++;
+    else if (d.tags.includes('✨ Resolved')) statusCounts['RESOLVED']++;
+    else if (d.tags.includes('✨ Action required')) statusCounts['ACTION REQ.']++;
+    else if (d.tags.includes('✨ FYI')) statusCounts['FYI']++;
+    else if (d.tags.includes('✨ Awaiting response')) statusCounts['AGUARDANDO']++;
+    else statusCounts['SEM STATUS']++;
+  });
+
+  // Category counts
+  const ALL_CATS = ['AJUSTES','USER/FORNECEDORES','PO','BANCO DE DADOS','FINANCEIRO','BUDGETS',
+    'PROJETOS','DÚVIDA','BUG','CANCELAMENTO DE PO','EMPRESAS/CONFIG','CASHFLOW',
+    'VERBA','CRONOGRAMA','CACHÊS/COMISSÕES','REPORT','CROSS COMPANY','REEMBOLSO',
+    'EXECUTION CONTRACT','FORE','BE TALENT'];
+
+  const catCounts = {};
+  const foreItems = realItems.filter(d => d.tags.includes('FORE') && !d.tags.includes('EMAILS FORE'));
+  const productItems = realItems.filter(d => !d.tags.includes('FORE') || d.tags.includes('EMAILS FORE'));
+  realItems.forEach(d => {
+    d.tags.forEach(t => {
+      if (!STATUS.has(t) && !NOISE.has(t)) catCounts[t] = (catCounts[t] || 0) + 1;
+    });
+  });
+
+  const bugs = realItems.filter(d => d.tags.includes('BUG'));
+  const foroEmails = data.filter(d => d.tags.includes('EMAILS FORE'));
+  const foreReal = data.filter(d => d.tags.includes('FORE') && !d.tags.includes('EMAILS FORE'));
+  const foreClosed = foreReal.filter(d => d.tags.includes('TICKET FECHADO') || d.tags.includes('✨ Resolved'));
+
+  const closed = statusCounts['FECHADO'] + statusCounts['RESOLVED'];
+  const closedPct = realItems.length ? Math.round(closed / realItems.length * 100) : 0;
+
+  return {
+    startDate, endDate, total, noiseCount: noiseItems.length, noiseCounts,
+    realCount: realItems.length, statusCounts, catCounts,
+    bugs: bugs.length, productCount: productItems.length,
+    foreEmailCount: foroEmails.length, foreRealCount: foreReal.length,
+    foreClosedPct: foreReal.length ? Math.round(foreClosed.length / foreReal.length * 100) : 0,
+    closed, closedPct,
+    noStat: statusCounts['SEM STATUS'],
+  };
+}
+
+// ── RENDER ──────────────────────────────────────────────────
+function renderReport(d) {
+  // Title
+  const periodLabel = d.startDate && d.endDate ? `${d.startDate} — ${d.endDate}` : 'Período importado';
+  const monthLabel = d.endDate ? d.endDate.replace(/\d{4}$/, '').trim() : 'Relatório';
+  document.getElementById('rTitle').textContent = monthLabel || 'Relatório';
+  document.getElementById('rSub').textContent = `${periodLabel}  ·  Fonte: Drag.app  ·  Todos os usuários`;
+
+  // Metrics
+  document.getElementById('mTotal').textContent = d.total;
+  document.getElementById('mReal').textContent = d.realCount;
+  document.getElementById('mClosed').textContent = d.closedPct + '%';
+  document.getElementById('mClosedSub').textContent = `${d.closed} de ${d.realCount}`;
+  document.getElementById('mBugs').textContent = d.bugs;
+
+  // Noise bars
+  document.getElementById('noiseTotal').textContent = d.noiseCount + ' itens';
+  const maxNoise = Math.max(...Object.values(d.noiseCounts));
+  const noiseColors = { 'Notif. de teste': '#B4B2A9', 'Emails FORE automáticos': '#B4B2A9', 'Notificações sistema': '#B4B2A9' };
+  document.getElementById('noiseBars').innerHTML = Object.entries(d.noiseCounts).map(([lbl, cnt]) => `
+    <div class="bar-row">
+      <div class="bar-lbl">${lbl}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${maxNoise ? cnt/maxNoise*100 : 0}%;background:${noiseColors[lbl]};"></div></div>
+      <div class="bar-num">${cnt}</div>
+    </div>`).join('') + `<div class="insight">FORE envia notificações automáticas a cada PO disparada — inflam o volume sem exigir ação.</div>`;
+
+  // Status grid
+  const statusOrder = ['FECHADO','RESOLVED','ACTION REQ.','FYI','SEM STATUS','AGUARDANDO'];
+  document.getElementById('statusGrid').innerHTML = statusOrder.map(s => `
+    <div class="status-cell">
+      <div class="status-num">${d.statusCounts[s] || 0}</div>
+      <div class="status-lbl">${s}</div>
+    </div>`).join('');
+  document.getElementById('statusInsight').textContent =
+    d.noStat > 0 ? `${d.noStat} tickets sem status — adotar triagem semanal para manter dados confiáveis.` : 'Todos os tickets classificados.';
+
+  // Cat cards — group into 4 blocks
+  const blocks = [
+    { title: 'Acesso & Configuração', bgCls: 'var(--amber-bg)', fgCls: 'var(--amber)', barColor: '#EF9F27',
+      cats: ['AJUSTES','USER/FORNECEDORES','EMPRESAS/CONFIG'] },
+    { title: 'Financeiro & POs', bgCls: 'var(--blue-bg)', fgCls: 'var(--blue)', barColor: '#378ADD',
+      cats: ['PO','FINANCEIRO','CANCELAMENTO DE PO','CASHFLOW','VERBA','REEMBOLSO'] },
+    { title: 'Produto & Features', bgCls: 'var(--green-bg)', fgCls: 'var(--green)', barColor: '#639922',
+      cats: ['BUDGETS','PROJETOS','CRONOGRAMA','CACHÊS/COMISSÕES','EXECUTION CONTRACT','DÚVIDA'] },
+    { title: 'Infra & Bugs', bgCls: 'var(--red-bg)', fgCls: 'var(--red)', barColor: '#E24B4A',
+      cats: ['BANCO DE DADOS','BUG'] },
+  ];
+
+  document.getElementById('catSubLabel').textContent = `(${d.productCount} interações, excl. FORE)`;
+  const maxCat = Math.max(...Object.values(d.catCounts).filter(Boolean), 1);
+
+  document.getElementById('catGrid').innerHTML = blocks.map(b => {
+    const totalBlock = b.cats.reduce((s, c) => s + (d.catCounts[c] || 0), 0);
+    const barsHtml = b.cats
+      .filter(c => d.catCounts[c] > 0)
+      .map(c => `
+        <div class="bar-row">
+          <div class="bar-lbl">${c.charAt(0) + c.slice(1).toLowerCase()}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${d.catCounts[c]/maxCat*100}%;background:${b.barColor};"></div></div>
+          <div class="bar-num">${d.catCounts[c]}</div>
+        </div>`).join('');
+    return `<div class="card">
+      <div class="card-head">
+        <span class="card-title">${b.title}</span>
+        <span style="font-size:11px;font-weight:500;font-family:var(--mono);color:${b.fgCls}">${totalBlock} tickets</span>
+      </div>
+      <div class="card-body">${barsHtml || '<div style="font-size:11px;color:var(--muted)">Nenhum ticket nesta categoria</div>'}</div>
+    </div>`;
+  }).join('');
+
+  // FORE
+  document.getElementById('foreSubLabel').textContent = `(${d.foreRealCount} interações reais)`;
+  document.getElementById('foreMetrics').innerHTML = `
+    <div class="fore-metric">
+      <div class="fore-label">Notificações auto</div>
+      <div class="fore-value">${d.foreEmailCount}</div>
+      <div class="fore-sub">não exigem ação</div>
+    </div>
+    <div class="fore-metric">
+      <div class="fore-label">Tickets ativos</div>
+      <div class="fore-value">${d.foreRealCount}</div>
+      <div class="fore-sub">interações reais</div>
+    </div>
+    <div class="fore-metric">
+      <div class="fore-label">Taxa de fechamento</div>
+      <div class="fore-value">~${d.foreClosedPct}%</div>
+      <div class="fore-sub">encerrados</div>
+    </div>
+    <div class="insight" style="margin:0;align-self:center;">
+      Principais motivos: notas fiscais (upload/erro), dados cadastrais desatualizados, dúvidas sobre status de pagamento. Nenhum escalou.
+    </div>`;
+
+  // Observações — geradas dinamicamente
+  const obs = [];
+  const noisePct = d.total ? Math.round(d.noiseCount / d.total * 100) : 0;
+  if (noisePct > 40) obs.push({ tag: 'ATENÇÃO', bg: 'var(--amber-bg)', fg: 'var(--amber)',
+    text: `<strong>Volume de ruído alto (${noisePct}% do inbox).</strong> Criar filtros automáticos no Drag para separar notificações de teste e emails FORE.` });
+  const ajPct = d.catCounts['AJUSTES'] ? Math.round((d.catCounts['AJUSTES'] + (d.catCounts['USER/FORNECEDORES']||0)) / d.productCount * 100) : 0;
+  if (ajPct > 30) obs.push({ tag: 'ATENÇÃO', bg: 'var(--amber-bg)', fg: 'var(--amber)',
+    text: `<strong>Acesso & configuração concentra ${ajPct}% dos tickets de produto.</strong> Candidatos a fluxo self-service ou documentação interna.` });
+  if ((d.catCounts['BANCO DE DADOS'] || 0) >= 10) obs.push({ tag: 'ATENÇÃO', bg: 'var(--amber-bg)', fg: 'var(--amber)',
+    text: `<strong>${d.catCounts['BANCO DE DADOS']} tickets de banco de dados.</strong> Verificar padrão — ajustes recorrentes podem virar funcionalidades de admin no sistema.` });
+  if (d.noStat > 10) obs.push({ tag: 'AÇÃO', bg: 'var(--red-bg)', fg: 'var(--red)',
+    text: `<strong>${d.noStat} tickets sem status.</strong> Adotar rotina semanal de triagem para manter dados de relatório confiáveis.` });
+  if (d.closedPct >= 60) obs.push({ tag: 'POSITIVO', bg: 'var(--green-bg)', fg: 'var(--green)',
+    text: `<strong>Taxa de fechamento de ${d.closedPct}% positiva.</strong> Meta sugerida: 80%+ para o próximo mês.` });
+  else obs.push({ tag: 'ATENÇÃO', bg: 'var(--amber-bg)', fg: 'var(--amber)',
+    text: `<strong>Taxa de fechamento de ${d.closedPct}% abaixo do esperado.</strong> Revisar backlog de tickets em aberto.` });
+
+  document.getElementById('obsBlock').innerHTML = obs.map(o => `
+    <div class="obs-row">
+      <span class="obs-tag" style="background:${o.bg};color:${o.fg};">${o.tag}</span>
+      <span class="obs-text">${o.text}</span>
+    </div>`).join('');
+
+  // Footer
+  document.getElementById('footerL').textContent = `LS2 · Suporte ${monthLabel} · Dados: Drag.app export`;
+  document.getElementById('footerR').textContent = `${d.total} itens processados  ·  ${d.bugs} bugs  ·  ${d.closedPct}% fechamento`;
+}
+
+// ── DEMO DATA (abril 2026) ───────────────────────────────────
+function loadDemo() {
+  const demo = {
+    startDate: '01 April 2026', endDate: '30 April 2026',
+    total: 442, noiseCount: 271,
+    noiseCounts: { 'Notif. de teste': 167, 'Emails FORE automáticos': 74, 'Notificações sistema': 150 },
+    realCount: 171, bugs: 7, productCount: 128,
+    statusCounts: { 'FECHADO': 111, 'RESOLVED': 32, 'ACTION REQ.': 7, 'FYI': 23, 'SEM STATUS': 26, 'AGUARDANDO': 1 },
+    catCounts: { 'AJUSTES': 41, 'USER/FORNECEDORES': 21, 'PO': 17, 'BANCO DE DADOS': 14,
+      'FINANCEIRO': 14, 'BUDGETS': 11, 'PROJETOS': 9, 'DÚVIDA': 8, 'BUG': 7,
+      'CANCELAMENTO DE PO': 6, 'EMPRESAS/CONFIG': 4, 'CASHFLOW': 4, 'VERBA': 4,
+      'CRONOGRAMA': 3, 'CACHÊS/COMISSÕES': 2, 'REPORT': 2, 'FORE': 43 },
+    foreEmailCount: 74, foreRealCount: 43, foreClosedPct: 95,
+    closed: 143, closedPct: 65, noStat: 26,
+  };
+  showReport(demo);
+}
+
+function showReport(data) {
+  renderReport(data);
+  document.getElementById('uploadScreen').style.display = 'none';
+  document.getElementById('report').classList.add('visible');
+}
+
+// ── EVENTS ──────────────────────────────────────────────────
+document.getElementById('csvInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const result = analyzeCSV(ev.target.result);
+    if (!result) { alert('Formato não reconhecido. Verifique se o CSV é o export "Daily Cards" do Drag.app.'); return; }
+    showReport(result);
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const result = analyzeCSV(ev.target.result);
+    if (!result) { alert('Formato não reconhecido.'); return; }
+    showReport(result);
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+
+document.getElementById('demoBtn').addEventListener('click', loadDemo);
+document.getElementById('backBtn').addEventListener('click', () => {
+  document.getElementById('uploadScreen').style.display = '';
+  document.getElementById('report').classList.remove('visible');
+});
+</script>
+</body>
+</html>
