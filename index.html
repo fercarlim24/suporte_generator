@@ -1386,6 +1386,188 @@ function loadHorasDemo() {
   processHorasCSV(demo);
 }
 
+/* ════════════════════════════════════════════
+   HORAS — GOOGLE SHEETS CONNECTION
+════════════════════════════════════════════ */
+const SHEETS_KEY = 'ls2-horas-sheets';
+let hAutoRefreshTimer = null;
+
+/* ── tab switching ── */
+function hSwitchTab(tab) {
+  const isSheets = tab === 'sheets';
+  document.getElementById('h-panel-upload').style.display = isSheets ? 'none' : 'block';
+  document.getElementById('h-panel-sheets').style.display = isSheets ? 'block' : 'none';
+  document.getElementById('h-tab-upload').style.background = isSheets ? '#f7f8fa' : 'white';
+  document.getElementById('h-tab-upload').style.color = isSheets ? '#888' : '#444';
+  document.getElementById('h-tab-sheets').style.background = isSheets ? 'white' : '#f7f8fa';
+  document.getElementById('h-tab-sheets').style.color = isSheets ? '#444' : '#888';
+  if (isSheets) hLoadSheetsUI();
+}
+
+/* ── method change ── */
+function hMethodChange(val) {
+  document.getElementById('h-instr-publish').style.display = val === 'publish' ? 'block' : 'none';
+  document.getElementById('h-instr-apps').style.display   = val === 'appscript' ? 'block' : 'none';
+}
+
+/* ── copy Apps Script code ── */
+function hCopyScript() {
+  const code = document.getElementById('h-apps-code').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    showToast(); document.getElementById('hist-toast').textContent = '✓ Código copiado!';
+    setTimeout(() => document.getElementById('hist-toast').textContent = '✓ Salvo no histórico', 2600);
+  }).catch(() => alert('Copie o código manualmente.'));
+}
+
+/* ── load saved connection into UI ── */
+function hLoadSheetsUI() {
+  const cfg = hGetSheetsCfg();
+  if (cfg) {
+    document.getElementById('h-sheets-url').value = cfg.url;
+    const methodEl = document.querySelector(`input[name="h-method"][value="${cfg.method}"]`);
+    if (methodEl) { methodEl.checked = true; hMethodChange(cfg.method); }
+    document.getElementById('h-auto-refresh').checked = cfg.autoRefresh || false;
+    document.getElementById('h-refresh-interval').value = cfg.interval || 5;
+    const status = document.getElementById('h-sheets-status');
+    status.style.display = 'flex';
+    document.getElementById('h-sheets-status-text').textContent =
+      `Conectado · Última atualização: ${cfg.lastFetched || 'nunca'}`;
+  }
+}
+
+/* ── storage helpers ── */
+function hGetSheetsCfg() {
+  try { return JSON.parse(localStorage.getItem(SHEETS_KEY)); } catch(e) { return null; }
+}
+function hSetSheetsCfg(cfg) {
+  localStorage.setItem(SHEETS_KEY, JSON.stringify(cfg));
+}
+
+/* ── connect ── */
+async function hSheetsConnect() {
+  const url = document.getElementById('h-sheets-url').value.trim();
+  const method = document.querySelector('input[name="h-method"]:checked')?.value || 'publish';
+  const errEl = document.getElementById('h-sheets-error');
+  errEl.style.display = 'none';
+
+  if (!url) { errEl.textContent = 'Cole a URL antes de conectar.'; errEl.style.display = 'block'; return; }
+
+  const btn = document.querySelector('#h-panel-sheets button[onclick="hSheetsConnect()"]');
+  btn.textContent = 'Conectando...'; btn.disabled = true;
+
+  try {
+    const rows = await hFetchSheets(url, method);
+    if (!rows || !rows.length) throw new Error('Nenhum dado retornado. Verifique se a planilha está publicada corretamente.');
+
+    const now = new Date().toLocaleString('pt-BR');
+    const autoRefresh = document.getElementById('h-auto-refresh').checked;
+    const interval = parseInt(document.getElementById('h-refresh-interval').value);
+
+    hSetSheetsCfg({ url, method, autoRefresh, interval, lastFetched: now });
+    hStartAutoRefresh();
+    hUpdateLiveIndicator(now);
+    processHorasCSV(rows);
+
+  } catch(err) {
+    errEl.textContent = err.message || 'Erro ao buscar dados. Verifique a URL e as permissões.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.textContent = 'Conectar'; btn.disabled = false;
+  }
+}
+
+/* ── fetch from either source ── */
+async function hFetchSheets(url, method) {
+  const cleanUrl = url.trim();
+  if (method === 'appscript') {
+    const res = await fetch(cleanUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    return Array.isArray(json) ? json : [];
+  } else {
+    // Publish to Web CSV — use PapaParse
+    return new Promise((resolve, reject) => {
+      Papa.parse(cleanUrl, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: r => resolve(r.data),
+        error: e => reject(new Error('Erro ao baixar CSV: ' + e.message)),
+      });
+    });
+  }
+}
+
+/* ── manual refresh ── */
+async function hSheetsRefresh() {
+  const cfg = hGetSheetsCfg();
+  if (!cfg) return;
+  const btn = document.getElementById('h-refresh-btn');
+  const topBtn = document.getElementById('h-refresh-btn');
+  if (btn) { btn.textContent = '⟳ Buscando...'; btn.disabled = true; }
+
+  try {
+    const rows = await hFetchSheets(cfg.url, cfg.method);
+    if (!rows || !rows.length) throw new Error('Sem dados');
+    const now = new Date().toLocaleString('pt-BR');
+    cfg.lastFetched = now;
+    hSetSheetsCfg(cfg);
+    hUpdateLiveIndicator(now);
+    processHorasCSV(rows);
+  } catch(err) {
+    alert('Erro ao atualizar: ' + err.message);
+  } finally {
+    if (btn) { btn.textContent = '⟳ Atualizar dados'; btn.disabled = false; }
+  }
+}
+
+/* ── auto-refresh timer ── */
+function hStartAutoRefresh() {
+  if (hAutoRefreshTimer) clearInterval(hAutoRefreshTimer);
+  const cfg = hGetSheetsCfg();
+  if (!cfg || !cfg.autoRefresh) return;
+  hAutoRefreshTimer = setInterval(() => hSheetsRefresh(), cfg.interval * 60 * 1000);
+}
+
+/* ── disconnect ── */
+function hSheetsDisconnect() {
+  if (hAutoRefreshTimer) clearInterval(hAutoRefreshTimer);
+  localStorage.removeItem(SHEETS_KEY);
+  document.getElementById('h-sheets-status').style.display = 'none';
+  document.getElementById('h-sheets-url').value = '';
+  document.getElementById('h-live-indicator').style.display = 'none';
+  document.getElementById('h-rpt-refresh-btn').style.display = 'none';
+}
+
+/* ── update live indicator in topbar ── */
+function hUpdateLiveIndicator(lastFetched) {
+  const ind = document.getElementById('h-live-indicator');
+  ind.style.display = 'flex';
+  document.getElementById('h-live-label').textContent = 'Atualizado ' + (lastFetched || '');
+  document.getElementById('h-rpt-refresh-btn').style.display = 'inline-block';
+  const statusEl = document.getElementById('h-sheets-status');
+  if (statusEl) {
+    statusEl.style.display = 'flex';
+    document.getElementById('h-sheets-status-text').textContent = 'Conectado · Última atualização: ' + (lastFetched || '');
+  }
+}
+
+/* ── auto-connect on load if configured ── */
+(async function hAutoConnect() {
+  const cfg = hGetSheetsCfg();
+  if (!cfg) return;
+  try {
+    const rows = await hFetchSheets(cfg.url, cfg.method);
+    if (rows && rows.length) {
+      const now = new Date().toLocaleString('pt-BR');
+      cfg.lastFetched = now; hSetSheetsCfg(cfg);
+      hUpdateLiveIndicator(now);
+      processHorasCSV(rows);
+      hStartAutoRefresh();
+    }
+  } catch(e) { /* silent fail, user can reconnect manually */ }
+})();
+
 /* upload handlers */
 document.getElementById('h-csv-input').addEventListener('change', e => {
   const file = e.target.files[0]; if(!file) return;
@@ -1444,27 +1626,147 @@ hDz.addEventListener('drop', e=>{
     <span class="topbar-logo">Landscape<span>OS 2</span></span>
     <span class="topbar-sep"></span>
     <span class="topbar-title">Horas de Desenvolvimento</span>
+    <div id="h-live-indicator" style="display:none;margin-left:auto;display:none;align-items:center;gap:8px;">
+      <span id="h-live-dot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;"></span>
+      <span id="h-live-label" style="font-size:11px;color:var(--muted);"></span>
+      <button id="h-refresh-btn" onclick="hSheetsRefresh()" style="background:none;border:1px solid var(--border-md);border-radius:4px;padding:3px 10px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit;">⟳ Atualizar</button>
+    </div>
   </div>
 
+
   <!-- Upload state -->
-  <div class="upload-area" id="h-upload-area">
+  <div class="upload-area" id="h-upload-area" style="padding-top:32px;">
     <p class="hub-logo" style="margin-bottom:8px;">Landscape<span style="color:var(--purple)">OS 2</span> — Dev</p>
     <h1 class="upload-heading">Horas mensais</h1>
-    <p class="upload-sub">Exporte a planilha de horas do Google Sheets como CSV<br>e carregue aqui para gerar o relatório por semana e categoria.</p>
 
-    <div class="drop-zone" id="h-drop-zone">
-      <input type="file" id="h-csv-input" accept=".csv">
-      <div class="drop-icon">⊞</div>
-      <div class="drop-label">Arraste o CSV ou clique para selecionar</div>
-      <div class="drop-hint">Google Sheets → File → Download → CSV</div>
+    <!-- Mode tabs -->
+    <div style="display:flex;gap:0;border:1px solid #ddd;border-radius:8px;overflow:hidden;margin-bottom:28px;width:100%;max-width:480px;">
+      <button id="h-tab-upload" onclick="hSwitchTab('upload')"
+        style="flex:1;padding:9px 0;font-size:12px;font-family:inherit;cursor:pointer;border:none;background:white;color:#444;font-weight:500;border-right:1px solid #ddd;transition:background .15s;">
+        ↑ Upload CSV
+      </button>
+      <button id="h-tab-sheets" onclick="hSwitchTab('sheets')"
+        style="flex:1;padding:9px 0;font-size:12px;font-family:inherit;cursor:pointer;border:none;background:#f7f8fa;color:#888;transition:background .15s;">
+        ⟳ Google Sheets ao vivo
+      </button>
     </div>
 
-    <p class="upload-note">
-      A planilha deve ter as colunas <strong>MÊS</strong>, <strong>SEMANA</strong>, <strong>HORAS/MINUTOS</strong>,
-      <strong>SISTEMA</strong>, <strong>CATEGORIA</strong> e <strong>DESCRIÇÃO</strong>.<br>
-      Formatos de tempo aceitos: <code>1:30:00</code> ou <code>1:30</code>.
-    </p>
-    <button class="demo-btn" onclick="loadHorasDemo()">Ver com dados de demonstração (Fev 2026)</button>
+    <!-- Tab: Manual upload -->
+    <div id="h-panel-upload">
+      <div class="drop-zone" id="h-drop-zone">
+        <input type="file" id="h-csv-input" accept=".csv">
+        <div class="drop-icon">⊞</div>
+        <div class="drop-label">Arraste o CSV ou clique para selecionar</div>
+        <div class="drop-hint">Google Sheets → File → Download → CSV</div>
+      </div>
+      <p class="upload-note">
+        A planilha deve ter as colunas <strong>MÊS</strong>, <strong>SEMANA</strong>, <strong>HORAS/MINUTOS</strong>,
+        <strong>SISTEMA</strong>, <strong>CATEGORIA</strong> e <strong>DESCRIÇÃO</strong>.<br>
+        Formatos de tempo aceitos: <code>1:30:00</code> ou <code>1:30</code>.
+      </p>
+      <button class="demo-btn" onclick="loadHorasDemo()">Ver com dados de demonstração (Fev 2026)</button>
+    </div>
+
+    <!-- Tab: Google Sheets live connection -->
+    <div id="h-panel-sheets" style="display:none;width:100%;max-width:540px;">
+
+      <!-- Status banner (shown when already connected) -->
+      <div id="h-sheets-status" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#15803d;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:16px;">●</span>
+        <span id="h-sheets-status-text">Conectado</span>
+        <button onclick="hSheetsDisconnect()" style="margin-left:auto;background:none;border:1px solid #bbf7d0;border-radius:4px;padding:2px 10px;font-size:11px;color:#15803d;cursor:pointer;font-family:inherit;">Desconectar</button>
+      </div>
+
+      <!-- Method selector -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:500;color:#444;margin-bottom:10px;">Escolha o método:</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:white;" id="h-method-pub-wrap">
+            <input type="radio" name="h-method" value="publish" checked onchange="hMethodChange(this.value)" style="margin-top:2px;">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:#222;">Publish to Web <span style="background:#f0fdf4;color:#15803d;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600;margin-left:4px;">Recomendado</span></div>
+              <div style="font-size:11px;color:#888;margin-top:2px;">~5 minutos de cache. Zero configuração extra no Sheets.</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:white;" id="h-method-apps-wrap">
+            <input type="radio" name="h-method" value="appscript" onchange="hMethodChange(this.value)" style="margin-top:2px;">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:#222;">Apps Script Web App <span style="background:#fff7ed;color:#c2410c;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600;margin-left:4px;">Tempo real</span></div>
+              <div style="font-size:11px;color:#888;margin-top:2px;">Dados sempre frescos. Requer colar ~15 linhas de código no Sheets.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Instructions: Publish to Web -->
+      <div id="h-instr-publish">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:14px;font-size:12px;line-height:1.8;color:#555;">
+          <strong style="color:#222;">Como gerar a URL:</strong><br>
+          1. Abra sua planilha no Google Sheets<br>
+          2. <strong>File → Share → Publish to web</strong><br>
+          3. Em "Link", selecione a aba da planilha (ex: Fevereiro)<br>
+          4. Mude o formato para <strong>Comma-separated values (.csv)</strong><br>
+          5. Clique em <strong>Publish</strong> e copie a URL gerada
+        </div>
+      </div>
+
+      <!-- Instructions: Apps Script -->
+      <div id="h-instr-apps" style="display:none;">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:14px;font-size:12px;line-height:1.8;color:#555;">
+          <strong style="color:#222;">Como configurar:</strong><br>
+          1. Abra sua planilha → <strong>Extensions → Apps Script</strong><br>
+          2. Apague o código existente e cole o código abaixo<br>
+          3. <strong>Deploy → New deployment → Web app</strong><br>
+          4. Execute as: <strong>Me</strong> · Who has access: <strong>Anyone</strong><br>
+          5. Clique em <strong>Deploy</strong>, autorize e copie a URL
+        </div>
+        <div style="background:#0c0f1a;border-radius:8px;padding:14px;margin-bottom:14px;overflow-x:auto;">
+          <pre id="h-apps-code" style="font-family:monospace;font-size:11px;color:#e2e8f0;line-height:1.6;margin:0;white-space:pre;">function doGet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getActiveSheet();
+  const data = sh.getDataRange().getValues();
+  const headers = data[0].map(h => String(h).trim());
+  const rows = data.slice(1)
+    .filter(r => r.some(c => c !== ''))
+    .map(r => {
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = r[i]);
+      return obj;
+    });
+  const out = ContentService
+    .createTextOutput(JSON.stringify(rows))
+    .setMimeType(ContentService.MimeType.JSON);
+  return out;
+}</pre>
+          <button onclick="hCopyScript()" style="margin-top:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:4px 12px;color:#e2e8f0;font-size:11px;cursor:pointer;font-family:inherit;">Copiar código</button>
+        </div>
+      </div>
+
+      <!-- URL input -->
+      <div style="display:flex;gap:8px;align-items:stretch;">
+        <input type="text" id="h-sheets-url" placeholder="Cole a URL aqui..."
+          style="flex:1;border:1px solid #ddd;border-radius:6px;padding:10px 12px;font-size:12px;font-family:inherit;outline:none;color:#222;background:white;"
+          onkeydown="if(event.key==='Enter')hSheetsConnect()">
+        <button onclick="hSheetsConnect()"
+          style="background:var(--purple-g);border:none;border-radius:6px;padding:0 18px;color:white;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;">
+          Conectar
+        </button>
+      </div>
+      <div id="h-sheets-error" style="display:none;font-size:11px;color:#dc2626;margin-top:8px;"></div>
+
+      <!-- Auto-refresh -->
+      <div style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:11px;color:#888;">
+        <input type="checkbox" id="h-auto-refresh" style="cursor:pointer;">
+        <label for="h-auto-refresh" style="cursor:pointer;">Atualizar automaticamente a cada</label>
+        <select id="h-refresh-interval" style="border:1px solid #ddd;border-radius:4px;padding:2px 6px;font-size:11px;font-family:inherit;background:white;color:#555;">
+          <option value="2">2 min</option>
+          <option value="5" selected>5 min</option>
+          <option value="10">10 min</option>
+          <option value="30">30 min</option>
+        </select>
+      </div>
+
+    </div>
   </div>
 
   <!-- Report state -->
@@ -1476,6 +1778,7 @@ hDz.addEventListener('drop', e=>{
       </div>
       <div class="report-actions np">
         <button class="rpt-btn" onclick="resetHoras()">← Novo upload</button>
+        <button id="h-rpt-refresh-btn" class="rpt-btn" style="display:none;" onclick="hSheetsRefresh()">⟳ Atualizar dados</button>
         <button class="rpt-btn" onclick="histSave('horas')">☁ Salvar</button>
         <button class="rpt-btn primary" onclick="window.print()">↓ PDF</button>
       </div>
