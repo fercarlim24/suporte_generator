@@ -7,389 +7,30 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" href="/src/styles/main.css">
 <style>
-/* ════════════════════════════════════════════
-   LS2 DESIGN TOKENS
-════════════════════════════════════════════ */
-:root {
-  --bg-dark:    #0c0f1a;
-  --bg-menu:    #141928;
-  --bg-context: #1c2236;
-  --bg-card:    #222840;
-  --border:     rgba(255,255,255,0.07);
-  --border-md:  rgba(255,255,255,0.13);
-  --text:       #e2e8f0;
-  --muted:      rgba(226,232,240,0.45);
-  --purple-g:   linear-gradient(135deg, #5b21b6, #8b5cf6);
-  --orange-g:   linear-gradient(135deg, #c2410c, #fb923c);
-  --green-g:    linear-gradient(135deg, #15803d, #4ade80);
-  --red-g:      linear-gradient(135deg, #991b1b, #f87171);
-  --purple:     #8b5cf6;
-  --orange:     #fb923c;
-  --green:      #4ade80;
-  --red:        #f87171;
+.app-loading {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(12,15,26,.75);
+  display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
 }
-
-/* ════════════════════════════════════════════
-   RESET / BASE
-════════════════════════════════════════════ */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text); font-size: 13px; font-weight: 300; }
-textarea, input[type=text] { border: none; background: transparent; outline: none; font-family: inherit; resize: none; color: var(--text); font-weight: 300; }
-textarea::placeholder, input::placeholder { color: var(--muted); }
-textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4px; }
-
-/* ════════════════════════════════════════════
-   SCREEN MANAGEMENT
-════════════════════════════════════════════ */
-.screen { display: none; min-height: 100vh; }
-.screen.active { display: block; }
-
-/* ════════════════════════════════════════════
-   SHARED TOPBAR
-════════════════════════════════════════════ */
-.topbar {
-  background: var(--bg-menu);
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center;
-  padding: 10px 20px; gap: 16px;
-  position: sticky; top: 0; z-index: 10;
+.app-loading.active { display: flex; }
+.app-loading-spinner {
+  width: 36px; height: 36px; border: 2px solid rgba(255,255,255,.15);
+  border-top-color: #8b5cf6; border-radius: 50%; animation: spin .7s linear infinite;
 }
-.topbar-logo { font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.topbar-logo span { color: var(--purple); }
-.topbar-sep { width: 1px; height: 16px; background: var(--border-md); }
-.topbar-title { font-size: 13px; font-weight: 500; color: var(--text); }
-.back-btn {
-  display: flex; align-items: center; gap: 6px;
-  background: none; border: 1px solid var(--border-md);
-  border-radius: 5px; padding: 4px 12px; cursor: pointer;
-  color: var(--muted); font-size: 11px; font-family: inherit;
-  transition: color .15s, border-color .15s;
-}
-.back-btn:hover { color: var(--text); border-color: rgba(139,92,246,.5); }
-.btn-purple {
-  background: var(--purple-g); border: none; border-radius: 5px;
-  padding: 5px 14px; color: white; cursor: pointer;
-  font-size: 11px; font-weight: 500; font-family: inherit;
-  transition: filter .15s;
-}
-.btn-purple:hover { filter: brightness(1.1); }
-.btn-ghost {
-  background: var(--bg-card); border: 1px solid var(--border-md); border-radius: 5px;
-  padding: 5px 12px; color: var(--muted); cursor: pointer;
-  font-size: 11px; font-family: inherit; transition: color .15s;
-}
-.btn-ghost:hover { color: var(--text); }
-
-/* ════════════════════════════════════════════
-   SCREEN 0 — HUB NAVIGATION
-════════════════════════════════════════════ */
-#screen-hub {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  min-height: 100vh; padding: 40px 20px;
-  background: var(--bg-dark);
-}
-.hub-logo {
-  font-size: 10px; font-weight: 600; letter-spacing: .2em;
-  text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
-}
-.hub-logo span { color: var(--purple); }
-.hub-title { font-size: 36px; font-weight: 300; letter-spacing: -.02em; color: var(--text); margin-bottom: 6px; text-align: center; }
-.hub-sub { font-size: 13px; color: var(--muted); margin-bottom: 56px; text-align: center; }
-.hub-cards { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
-.hub-card {
-  width: 280px; background: var(--bg-context);
-  border: 1px solid var(--border); border-radius: 12px;
-  overflow: hidden; cursor: pointer;
-  transition: transform .2s, border-color .2s, box-shadow .2s;
-}
-.hub-card:hover { transform: translateY(-3px); border-color: var(--border-md); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
-.hub-card-hdr { padding: 20px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.9); }
-.hub-card-hdr.purple { background: var(--purple-g); }
-.hub-card-hdr.orange { background: var(--orange-g); }
-.hub-card-hdr.green  { background: var(--green-g); }
-.hub-card-hdr.blue   { background: linear-gradient(135deg, #1d4ed8, #60a5fa); }
-.hub-card-body { padding: 20px; }
-.hub-card-name { font-size: 18px; font-weight: 400; color: var(--text); margin-bottom: 8px; }
-.hub-card-desc { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
-.hub-card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.tag { font-size: 10px; background: var(--bg-menu); border: 1px solid var(--border-md); border-radius: 20px; padding: 2px 9px; color: var(--muted); }
-.hub-footer { margin-top: 64px; font-size: 11px; color: var(--muted); letter-spacing: .06em; }
-
-/* ════════════════════════════════════════════
-   SCREEN 1 — SUPPORT REPORT
-   (light theme for print-friendliness)
-════════════════════════════════════════════ */
-#screen-suporte { background: #f7f8fa; }
-#screen-suporte .topbar { background: var(--bg-menu); }
-
-/* upload */
-.upload-area {
-  min-height: calc(100vh - 49px);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: 40px 20px;
-}
-.upload-heading { font-size: 32px; font-weight: 300; color: #111; margin-bottom: 6px; letter-spacing: -.01em; }
-.upload-sub { font-size: 13px; color: #666; margin-bottom: 32px; text-align: center; line-height: 1.6; }
-.drop-zone {
-  width: 100%; max-width: 480px;
-  border: 1.5px dashed #c7cbd6; border-radius: 12px;
-  padding: 40px 32px; text-align: center; cursor: pointer;
-  transition: border-color .2s, background .2s; background: white;
-  position: relative;
-}
-.drop-zone:hover, .drop-zone.drag-over { border-color: var(--purple); background: #faf8ff; }
-.drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.drop-icon { font-size: 28px; color: #bbb; margin-bottom: 12px; font-family: monospace; }
-.drop-label { font-size: 14px; color: #444; margin-bottom: 6px; }
-.drop-hint { font-size: 11px; color: #999; }
-.upload-note { margin-top: 20px; font-size: 11px; color: #888; max-width: 460px; text-align: center; line-height: 1.7; }
-.demo-btn { margin-top: 24px; background: none; border: 1px solid #ddd; border-radius: 6px; padding: 7px 18px; font-size: 12px; color: #888; cursor: pointer; font-family: inherit; transition: border-color .15s, color .15s; }
-.demo-btn:hover { border-color: #bbb; color: #444; }
-
-/* report */
-.report-wrap { max-width: 860px; margin: 0 auto; padding: 32px 20px 60px; }
-.report-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
-.report-logo { font-size: 10px; font-weight: 600; letter-spacing: .18em; color: #aaa; text-transform: uppercase; margin-bottom: 4px; }
-.report-title { font-size: 30px; font-weight: 300; color: #111; letter-spacing: -.01em; }
-.report-period { font-size: 12px; color: #888; margin-top: 4px; }
-.report-actions { display: flex; gap: 8px; }
-.rpt-btn { background: none; border: 1px solid #ddd; border-radius: 5px; padding: 5px 14px; font-size: 11px; color: #666; cursor: pointer; font-family: inherit; }
-.rpt-btn:hover { border-color: #bbb; color: #333; }
-.rpt-btn.primary { background: var(--purple-g); border: none; color: white; font-weight: 500; }
-
-/* metrics grid */
-.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
-.metric { background: white; border: 1px solid #eaedf2; border-radius: 8px; padding: 14px 16px; }
-.metric-label { font-size: 10px; color: #999; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; }
-.metric-value { font-size: 26px; font-weight: 400; color: #111; line-height: 1; }
-.metric-sub { font-size: 11px; color: #aaa; margin-top: 4px; }
-
-/* two-col */
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-.rpt-card { background: white; border: 1px solid #eaedf2; border-radius: 8px; padding: 16px 18px; }
-.rpt-card-title { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #888; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-.rpt-card-title .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.dot-purple { background: var(--purple); }
-.dot-orange { background: var(--orange); }
-.dot-green  { background: var(--green); }
-.dot-red    { background: var(--red); }
-
-/* category bar */
-.cat-row { margin-bottom: 10px; }
-.cat-meta { display: flex; justify-content: space-between; font-size: 11px; color: #555; margin-bottom: 4px; }
-.cat-bar { height: 6px; background: #f0f1f5; border-radius: 3px; overflow: hidden; }
-.cat-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #5b21b6, #8b5cf6); }
-.cat-fill.orange { background: linear-gradient(90deg, #c2410c, #fb923c); }
-.cat-fill.green  { background: linear-gradient(90deg, #15803d, #4ade80); }
-.cat-fill.red    { background: linear-gradient(90deg, #991b1b, #f87171); }
-
-/* status pills */
-.status-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.pill { font-size: 10px; padding: 4px 10px; border-radius: 20px; border: 1px solid; font-weight: 500; }
-.pill-green  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-.pill-orange { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
-.pill-gray   { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
-.pill-red    { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
-
-/* fore */
-.fore-wrap { background: white; border: 1px solid #eaedf2; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px; }
-.fore-metrics { display: grid; grid-template-columns: repeat(3, auto) 1fr; gap: 10px; align-items: start; }
-.fore-metric { background: #f7f8fa; border-radius: 6px; padding: 10px 14px; }
-.fore-label { font-size: 9px; color: #aaa; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px; }
-.fore-value { font-size: 22px; font-weight: 400; color: #111; }
-.fore-sub { font-size: 10px; color: #aaa; margin-top: 2px; }
-.fore-note { font-size: 11px; color: #888; line-height: 1.7; padding: 12px; background: #f7f8fa; border-radius: 6px; }
-
-/* bug list */
-.bug-list { list-style: none; }
-.bug-item { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f1f3f7; font-size: 12px; color: #444; align-items: flex-start; }
-.bug-item:last-child { border-bottom: none; }
-.bug-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); flex-shrink: 0; margin-top: 4px; }
-
-/* obs */
-.obs-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f3f7; align-items: flex-start; font-size: 12px; }
-.obs-item:last-child { border-bottom: none; }
-.obs-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; flex-shrink: 0; margin-top: 1px; }
-.obs-text { color: #444; line-height: 1.6; }
-.obs-text strong { font-weight: 500; color: #222; }
-
-.report-footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #eaedf2; display: flex; justify-content: space-between; font-size: 10px; color: #bbb; }
-
-@media (max-width: 600px) {
-  .metrics { grid-template-columns: repeat(2, 1fr); }
-  .two-col { grid-template-columns: 1fr; }
-  .fore-metrics { grid-template-columns: 1fr 1fr; }
-}
-
-/* ════════════════════════════════════════════
-   SCREEN 2 — ONE PAGER (LS2 dark)
-════════════════════════════════════════════ */
-#screen-op { background: var(--bg-dark); }
-.op-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-.op-row { display: flex; gap: 8px; }
-.op-card { background: var(--bg-context); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.op-col-hdr { padding: 6px 12px; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.9); }
-.op-col-hdr.purple { background: var(--purple-g); }
-.op-col-hdr.orange { background: var(--orange-g); }
-.op-col-hdr.green  { background: var(--green-g); }
-.op-col-hdr.red    { background: var(--red-g); }
-.op-card-body { padding: 12px; }
-.op-label { font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-.op-label-line { display: inline-block; width: 18px; height: 2px; background: var(--purple-g); border-radius: 2px; }
-.op-field { border: 1px solid var(--border); border-radius: 5px; padding: 8px 10px; font-size: 11px; line-height: 1.6; width: 100%; display: block; background: var(--bg-menu); }
-.op-field-plain { font-size: 11px; line-height: 1.6; width: 100%; display: block; }
-.sdot { cursor: pointer; border-radius: 50%; transition: transform .1s, box-shadow .15s; flex-shrink: 0; }
-.sdot:hover { transform: scale(1.25); }
-.status-row-op { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); }
-.status-row-op:last-child { border-bottom: none; }
-.status-lbl { font-size: 10px; color: var(--muted); }
-.visao-circle { width: 46px; height: 46px; border-radius: 50%; }
-.risk-lbl { font-size: 9px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 3px; }
-
-/* roadmap */
-.sprint-grid { display: grid; grid-template-columns: repeat(7,1fr); min-width: 560px; }
-.sprint-hdr-cell { text-align: center; padding: 3px 2px; border-right: 1px solid var(--border); border-bottom: 2px solid var(--border-md); }
-.sprint-hdr-cell:last-child { border-right: none; }
-.sprint-name { font-weight: 600; font-size: 10px; }
-.sprint-date { font-size: 9px; color: var(--muted); }
-.item-row { position: relative; display: grid; grid-template-columns: repeat(7,1fr); height: 30px; margin-top: 3px; min-width: 560px; }
-.item-cell { background: var(--bg-menu); border-right: 1px solid var(--border); position: relative; }
-.item-cell:last-child { border-right: none; }
-.item-cell.cur { background: rgba(139,92,246,.07); }
-.cur-line { position: absolute; top: 0; bottom: 0; left: 50%; border-left: 1px dashed rgba(139,92,246,.35); z-index: 1; }
-.rbar { position: absolute; top: 4px; bottom: 4px; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; cursor: pointer; z-index: 2; transition: filter .15s; }
-.rbar:hover { filter: brightness(1.15); }
-.rbar.active { background: var(--purple-g); }
-.rbar.done { background: var(--green-g); }
-.rbar-text { color: rgba(255,255,255,.9); font-size: 10px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.add-form-op { background: var(--bg-menu); border: 1px solid rgba(139,92,246,.35); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; display: none; flex-wrap: wrap; gap: 6px; align-items: center; }
-.add-form-op.open { display: flex; }
-.add-form-op input, .add-form-op select { border: 1px solid var(--border-md); border-radius: 4px; padding: 4px 8px; font-size: 10.5px; outline: none; background: var(--bg-context); color: var(--text); font-family: inherit; }
-
-/* ════════════════════════════════════════════
-   SCREEN 3 — HORAS DEV (light theme)
-════════════════════════════════════════════ */
-#screen-horas { background: #f7f8fa; }
-#screen-horas .topbar { background: var(--bg-menu); }
-
-/* category pills */
-.cat-pill { display:inline-flex; align-items:center; font-size:10px; font-weight:600; padding:2px 9px; border-radius:20px; white-space:nowrap; }
-.cat-nova  { background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; }
-.cat-suporte { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
-.cat-bug   { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
-.cat-call  { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
-.cat-rotina { background:#f5f3ff; color:#5b21b6; border:1px solid #ddd6fe; }
-.cat-other { background:#f8fafc; color:#64748b; border:1px solid #e2e8f0; }
-
-/* system badge */
-.sys-badge { font-size:9px; font-weight:700; padding:2px 7px; border-radius:3px; letter-spacing:.06em; }
-.sys-os2  { background:#eef2ff; color:#3730a3; }
-.sys-fore { background:#fefce8; color:#854d0e; }
-
-/* weekly table */
-.week-table { width:100%; border-collapse:collapse; font-size:12px; }
-.week-table th { font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:#888; padding:8px 12px; border-bottom:2px solid #eaedf2; text-align:left; }
-.week-table td { padding:8px 12px; border-bottom:1px solid #f1f3f7; color:#444; vertical-align:middle; }
-.week-table tr:last-child td { border-bottom:none; font-weight:500; color:#111; background:#f7f8fa; }
-.week-total { font-weight:600 !important; color:#111 !important; }
-.time-val { font-variant-numeric:tabular-nums; font-weight:400; }
-
-/* category breakdown two-col */
-.hcat-row { display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid #f1f3f7; }
-.hcat-row:last-child { border-bottom:none; }
-.hcat-bar-wrap { flex:1; margin:0 12px; height:5px; background:#f0f1f5; border-radius:3px; overflow:hidden; }
-.hcat-bar-fill { height:100%; border-radius:3px; }
-.hcat-time { font-size:12px; font-variant-numeric:tabular-nums; color:#444; min-width:56px; text-align:right; }
-
-/* task list */
-.task-filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-.filter-btn { background:white; border:1px solid #ddd; border-radius:20px; padding:4px 12px; font-size:11px; color:#666; cursor:pointer; font-family:inherit; transition:all .15s; }
-.filter-btn.active { background:#5b21b6; border-color:#5b21b6; color:white; }
-.task-row { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid #f1f3f7; font-size:12px; }
-.task-row:last-child { border-bottom:none; }
-.task-week { font-size:10px; color:#aaa; min-width:58px; padding-top:1px; }
-.task-time { font-variant-numeric:tabular-nums; color:#555; min-width:52px; font-weight:500; }
-.task-desc { color:#333; flex:1; line-height:1.5; }
-.no-tasks { text-align:center; padding:24px; color:#aaa; font-size:13px; }
-
-/* ════════════════════════════════════════════
-   HISTORY SCREEN
-════════════════════════════════════════════ */
-#screen-hist { background: var(--bg-dark); }
-.hist-list-wrap { max-width: 760px; margin: 0 auto; padding: 28px 20px 60px; }
-.hist-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
-.hfilt { background: none; border: 1px solid var(--border-md); border-radius: 20px; padding: 5px 14px; font-size: 11px; color: var(--muted); cursor: pointer; font-family: inherit; transition: all .15s; }
-.hfilt.active { background: var(--purple-g); border-color: transparent; color: white; font-weight: 500; }
-.hist-entry {
-  background: var(--bg-context); border: 1px solid var(--border);
-  border-radius: 8px; padding: 14px 16px; margin-bottom: 10px;
-  display: flex; align-items: center; gap: 14px;
-  transition: border-color .15s;
-}
-.hist-entry:hover { border-color: var(--border-md); }
-.hist-badge {
-  font-size: 9px; font-weight: 700; padding: 3px 9px; border-radius: 20px;
-  letter-spacing: .07em; text-transform: uppercase; flex-shrink: 0; white-space: nowrap;
-}
-.hb-suporte { background: rgba(139,92,246,.15); color: #a78bfa; border: 1px solid rgba(139,92,246,.2); }
-.hb-horas   { background: rgba(74,222,128,.12); color: #4ade80; border: 1px solid rgba(74,222,128,.2); }
-.hb-op      { background: rgba(251,146,60,.12); color: #fb923c; border: 1px solid rgba(251,146,60,.2); }
-.hist-info { flex: 1; min-width: 0; }
-.hist-title { font-size: 14px; font-weight: 400; color: var(--text); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hist-meta  { font-size: 11px; color: var(--muted); }
-.hist-actions { display: flex; gap: 6px; flex-shrink: 0; }
-.ha-btn { background: var(--bg-card); border: 1px solid var(--border-md); border-radius: 5px; padding: 4px 10px; font-size: 11px; color: var(--muted); cursor: pointer; font-family: inherit; transition: color .15s; white-space: nowrap; }
-.ha-btn:hover { color: var(--text); }
-.ha-btn.primary { background: var(--purple-g); border: none; color: white; font-weight: 500; }
-.ha-btn.danger:hover { color: var(--red); border-color: rgba(248,113,113,.3); }
-.hist-empty { text-align: center; padding: 60px 20px; color: var(--muted); }
-.hist-empty-icon { font-size: 40px; margin-bottom: 16px; }
-
-/* Preview mode */
-.hist-preview-wrap { max-width: 900px; margin: 0 auto; padding: 24px 20px 60px; }
-.hist-preview-bar { display: flex; gap: 8px; margin-bottom: 20px; }
-/* Light wrapper for suporte/horas previews */
-.hist-preview-light { background: white; border-radius: 8px; padding: 32px; }
-/* Dark wrapper for one-pager preview */
-.hist-preview-dark { background: var(--bg-dark); padding: 10px; border-radius: 8px; }
-
-/* Toast notification */
-.hist-toast {
-  position: fixed; bottom: 24px; right: 24px;
-  background: var(--bg-context); border: 1px solid rgba(74,222,128,.3);
-  border-radius: 8px; padding: 10px 18px; font-size: 12px; color: var(--green);
-  z-index: 100; opacity: 0; transform: translateY(8px);
-  transition: opacity .25s, transform .25s; pointer-events: none;
-}
-.hist-toast.show { opacity: 1; transform: translateY(0); }
-
-/* Print frame — only visible during history print */
-#print-frame { display: none; }
-@media print {
-  body.ph > *:not(#print-frame) { display: none !important; }
-  body.ph #print-frame { display: block !important; }
-}
-
-/* ════════════════════════════════════════════
-   PRINT
-════════════════════════════════════════════ */
-@media print {
-  .topbar, .np, .report-actions { display: none !important; }
-  #screen-hub, #screen-suporte .topbar { display: none !important; }
-  body { background: white; color: #111; }
-  .rpt-card, .fore-wrap, .metric { box-shadow: none; }
-  @page { margin: 12mm; }
-}
+.app-loading-msg { font-size: 13px; color: #e2e8f0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+[data-go] { cursor: pointer; }
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════
-  SCREEN 0 — HUB
-══════════════════════════════════════════ -->
+<div id="app-loading" class="app-loading" aria-live="polite" aria-busy="true">
+  <div class="app-loading-spinner"></div>
+  <div class="app-loading-msg">Processando…</div>
+</div>
+
 <div id="screen-hub" class="screen active">
   <div class="hub-logo">Landscape<span>OS 2</span></div>
   <h1 class="hub-title">Product Tools</h1>
@@ -397,7 +38,7 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
 
   <div class="hub-cards">
 
-    <div class="hub-card" onclick="goTo('suporte')">
+    <div class="hub-card" data-go="suporte">
       <div class="hub-card-hdr purple">Suporte</div>
       <div class="hub-card-body">
         <div class="hub-card-name">Relatório mensal</div>
@@ -411,7 +52,7 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
       </div>
     </div>
 
-    <div class="hub-card" onclick="goTo('op')">
+    <div class="hub-card" data-go="op">
       <div class="hub-card-hdr orange">Produto</div>
       <div class="hub-card-body">
         <div class="hub-card-name">One Pager semanal</div>
@@ -425,7 +66,7 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
       </div>
     </div>
 
-    <div class="hub-card" onclick="goTo('horas')">
+    <div class="hub-card" data-go="horas">
       <div class="hub-card-hdr green">Dev</div>
       <div class="hub-card-body">
         <div class="hub-card-name">Horas de desenvolvimento</div>
@@ -439,7 +80,7 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
       </div>
     </div>
 
-    <div class="hub-card" onclick="goTo('hist')">
+    <div class="hub-card" data-go="hist">
       <div class="hub-card-hdr blue">Histórico</div>
       <div class="hub-card-body">
         <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px;">
@@ -459,14 +100,9 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
   </div>
   <div class="hub-footer">LANDSCAPEOS 2 — USE INTERNO</div>
 </div>
-
-
-<!-- ══════════════════════════════════════════
-  SCREEN 1 — SUPPORT REPORT
-══════════════════════════════════════════ -->
 <div id="screen-suporte" class="screen">
   <div class="topbar">
-    <button class="back-btn" onclick="goTo('hub')">← Voltar</button>
+    <button class="back-btn" id="btn-back-hub-suporte" data-go="hub">← Voltar</button>
     <div class="topbar-sep"></div>
     <span class="topbar-logo">Landscape<span>OS 2</span></span>
     <span class="topbar-sep"></span>
@@ -491,7 +127,7 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
       clique nos três pontos → Export → Daily Cards CSV.<br>
       O arquivo deve conter as colunas <strong>CARD NAME</strong>, <strong>TAGS</strong> e <strong>COLOR</strong>.
     </p>
-    <button class="demo-btn" onclick="loadDemo()">Ver com dados de demonstração</button>
+    <button class="demo-btn" id="btn-suporte-demo">Ver com dados de demonstração</button>
   </div>
 
   <!-- Report state (hidden until CSV loaded) -->
@@ -503,9 +139,10 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
         <div class="report-period" id="rptPeriod"></div>
       </div>
       <div class="report-actions np">
-        <button class="rpt-btn" onclick="resetReport()">← Novo upload</button>
-        <button class="rpt-btn" onclick="histSave('suporte')">☁ Salvar</button>
-        <button class="rpt-btn primary" onclick="window.print()">↓ PDF</button>
+        <button class="rpt-btn" id="btn-suporte-reset">← Novo upload</button>
+        <button class="rpt-btn" id="btn-suporte-save">☁ Salvar</button>
+        <button class="rpt-btn" id="btn-suporte-json">⬇ JSON</button>
+        <button class="rpt-btn primary" id="btn-suporte-pdf">↓ PDF</button>
       </div>
     </div>
 
@@ -530,14 +167,9 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
     </div>
   </div>
 </div>
-
-
-<!-- ══════════════════════════════════════════
-  SCREEN 2 — ONE PAGER
-══════════════════════════════════════════ -->
 <div id="screen-op" class="screen">
   <div class="topbar">
-    <button class="back-btn np" onclick="goTo('hub')">← Voltar</button>
+    <button class="back-btn np" data-go="hub">← Voltar</button>
     <div class="topbar-sep np"></div>
     <span class="topbar-logo">Landscape<span>OS 2</span></span>
     <span class="topbar-sep"></span>
@@ -551,9 +183,10 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
       <input type="text" id="op-data" placeholder="" style="width:80px;font-size:13px;">
     </div>
     <div style="display:flex;gap:6px;" class="np">
-      <button class="btn-ghost" onclick="histSave('op')">☁ Salvar</button>
-      <button class="btn-ghost" onclick="window.print()">↓ PDF</button>
-      <button class="btn-purple" id="op-add-btn" onclick="opToggleAdd()">+ Item</button>
+      <button class="btn-ghost" id="btn-op-save">☁ Salvar</button>
+      <button class="btn-ghost" id="btn-op-json">⬇ JSON</button>
+      <button class="btn-ghost" id="btn-op-pdf">↓ PDF</button>
+      <button class="btn-purple" id="op-add-btn">+ Item</button>
     </div>
   </div>
 
@@ -633,7 +266,7 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
         <span style="flex:1;">Roadmap</span>
         <div class="np" style="display:flex;gap:6px;align-items:center;">
           <span style="font-size:9px;color:rgba(255,255,255,.5);font-weight:400;">Sprint atual:</span>
-          <select id="op-cur-sprint" onchange="opState.curSprint=+this.value;opRenderRoadmap();opSave();" style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:2px 5px;color:white;font-size:10px;font-family:inherit;"></select>
+          <select id="op-cur-sprint"  style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:2px 5px;color:white;font-size:10px;font-family:inherit;"></select>
         </div>
       </div>
       <div class="op-card-body">
@@ -642,8 +275,8 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
           <select id="op-new-start"></select>
           <span style="font-size:11px;color:var(--muted);">→</span>
           <select id="op-new-end"></select>
-          <button class="btn-purple" onclick="opAddItem()">Adicionar</button>
-          <button class="btn-ghost" onclick="opToggleAdd()">✕</button>
+          <button class="btn-purple" id="btn-op-add-item">Adicionar</button>
+          <button class="btn-ghost" id="btn-op-add-cancel">✕</button>
         </div>
         <div style="overflow-x:auto;">
           <div class="sprint-grid" id="op-sprint-hdr"></div>
@@ -654,974 +287,9 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
 
   </div>
 </div>
-
-
-<!-- ══════════════════════════════════════════
-  JAVASCRIPT
-══════════════════════════════════════════ -->
-<script>
-/* ─── NAVIGATION ─── */
-function goTo(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  const map = { hub: 'screen-hub', suporte: 'screen-suporte', op: 'screen-op', horas: 'screen-horas', hist: 'screen-hist' };
-  const el = document.getElementById(map[id] || 'screen-hub');
-  if (el) { el.classList.add('active'); window.scrollTo(0,0); }
-  if (id === 'hist') histRenderList('ALL');
-}
-
-
-/* ════════════════════════════════════════════
-   SUPPORT REPORT LOGIC
-════════════════════════════════════════════ */
-const NOISE = new Set(['EMAILS FORE','FORE','EM ANDAMENTO','TICKET FECHADO','✨ Resolved','✨ Action required','✨ Awaiting response','✨ FYI','BUG','AJUSTES','ATUALIZAÇÃO','INTERNO']);
-const STATUS_TAGS = new Set(['TICKET FECHADO','✨ Resolved','✨ Action required','✨ Awaiting response','✨ FYI','EM ANDAMENTO']);
-
-function parseTags(raw) {
-  if (!raw) return [];
-  return raw.split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
-}
-
-function processCSV(data) {
-  const rows = data.filter(r => r['CARD NAME'] && r['CARD NAME'].trim());
-  const total = rows.length;
-  const foreEmails = rows.filter(r => parseTags(r.TAGS).includes('EMAILS FORE'));
-  const foreTickets = rows.filter(r => { const t = parseTags(r.TAGS); return t.includes('FORE') && !t.includes('EMAILS FORE'); });
-  const realTickets = rows.filter(r => !parseTags(r.TAGS).includes('EMAILS FORE'));
-  const bugs = realTickets.filter(r => parseTags(r.TAGS).includes('BUG'));
-  const closed = realTickets.filter(r => { const t = parseTags(r.TAGS); return t.includes('TICKET FECHADO') || t.includes('✨ RESOLVED'); });
-  const actionRequired = realTickets.filter(r => parseTags(r.TAGS).includes('✨ ACTION REQUIRED'));
-  const awaiting = realTickets.filter(r => parseTags(r.TAGS).includes('✨ AWAITING RESPONSE'));
-  const inProgress = realTickets.filter(r => parseTags(r.TAGS).includes('EM ANDAMENTO'));
-
-  // categories
-  const catMap = {};
-  realTickets.forEach(r => {
-    const cats = parseTags(r.TAGS).filter(t => !NOISE.has(t));
-    if (!cats.length) { catMap['SEM CATEGORIA'] = (catMap['SEM CATEGORIA']||0)+1; }
-    else cats.forEach(c => { catMap[c] = (catMap[c]||0)+1; });
-  });
-  const cats = Object.entries(catMap).sort((a,b) => b[1]-a[1]).slice(0,8);
-
-  renderReport({ total, foreEmails: foreEmails.length, foreTickets: foreTickets.length, realTickets: realTickets.length, bugs, closed: closed.length, actionRequired: actionRequired.length, awaiting: awaiting.length, inProgress: inProgress.length, cats });
-}
-
-function renderReport(d) {
-  document.getElementById('uploadArea').style.display = 'none';
-  const wrap = document.getElementById('reportWrap');
-  wrap.style.display = 'block';
-
-  const now = new Date();
-  document.getElementById('rptPeriod').textContent = now.toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
-  document.getElementById('rptFooterRight').textContent = 'Gerado em ' + now.toLocaleDateString('pt-BR');
-
-  // metrics
-  const closedPct = d.realTickets ? Math.round(d.closed/d.realTickets*100) : 0;
-  document.getElementById('rptMetrics').innerHTML = `
-    <div class="metric"><div class="metric-label">Total de cards</div><div class="metric-value">${d.total}</div><div class="metric-sub">incl. notificações FORE</div></div>
-    <div class="metric"><div class="metric-label">Tickets reais</div><div class="metric-value">${d.realTickets}</div><div class="metric-sub">excl. EMAILS FORE</div></div>
-    <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value">${d.closed}</div><div class="metric-sub">${closedPct}% de resolução</div></div>
-    <div class="metric"><div class="metric-label">Bugs</div><div class="metric-value">${d.bugs.length}</div><div class="metric-sub">reportados no período</div></div>
-  `;
-
-  // FORE
-  document.getElementById('rptFore').innerHTML = `
-    <div class="rpt-card-title"><span class="dot dot-orange"></span>FORE</div>
-    <div class="fore-metrics">
-      <div class="fore-metric"><div class="fore-label">Emails FORE</div><div class="fore-value">${d.foreEmails}</div><div class="fore-sub">notificações automáticas</div></div>
-      <div class="fore-metric"><div class="fore-label">Tickets FORE</div><div class="fore-value">${d.foreTickets}</div><div class="fore-sub">chamados reais</div></div>
-      <div class="fore-metric"><div class="fore-label">Total FORE</div><div class="fore-value">${d.foreEmails+d.foreTickets}</div><div class="fore-sub">do total de ${d.total}</div></div>
-      <div class="fore-note">Os emails FORE são notificações automáticas do sistema de pagamentos e não representam chamados de suporte. Os ${d.foreTickets} tickets FORE são interações reais com o time.</div>
-    </div>
-  `;
-
-  // two-col: categories + status
-  const catBars = d.cats.map(([c,v],i) => {
-    const pct = d.realTickets ? Math.round(v/d.realTickets*100) : 0;
-    const cls = i===0?'':'';
-    return `<div class="cat-row"><div class="cat-meta"><span>${c}</span><span>${v} · ${pct}%</span></div><div class="cat-bar"><div class="cat-fill" style="width:${pct}%"></div></div></div>`;
-  }).join('');
-
-  const statusHTML = `
-    <div class="status-pills">
-      <span class="pill pill-green">${d.closed} Fechados</span>
-      <span class="pill pill-orange">${d.actionRequired} Action required</span>
-      <span class="pill pill-gray">${d.awaiting} Awaiting response</span>
-      <span class="pill pill-gray">${d.inProgress} Em andamento</span>
-    </div>
-  `;
-
-  document.getElementById('rptTwoCol').innerHTML = `
-    <div class="rpt-card"><div class="rpt-card-title"><span class="dot dot-purple"></span>Categorias</div>${catBars}</div>
-    <div class="rpt-card"><div class="rpt-card-title"><span class="dot dot-green"></span>Status dos tickets</div>${statusHTML}</div>
-  `;
-
-  // bugs
-  const bugList = d.bugs.length
-    ? `<ul class="bug-list">${d.bugs.map(b=>`<li class="bug-item"><span class="bug-dot"></span><span>${b['CARD NAME']||''}</span></li>`).join('')}</ul>`
-    : `<p style="font-size:12px;color:#aaa;">Nenhum bug reportado no período.</p>`;
-  document.getElementById('rptBugs').innerHTML = `<div class="rpt-card-title"><span class="dot dot-red"></span>Bugs (${d.bugs.length})</div>${bugList}`;
-
-  // obs placeholder
-  document.getElementById('rptObs').innerHTML = `
-    <div class="rpt-card-title"><span class="dot dot-purple"></span>Observações</div>
-    <div class="obs-item"><span class="obs-tag pill-orange" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">Atenção</span><span class="obs-text">Revise os tickets de <strong>Action required</strong> em aberto.</span></div>
-    <div class="obs-item"><span class="obs-tag pill-green" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">Positivo</span><span class="obs-text">Taxa de resolução de <strong>${d.realTickets ? Math.round(d.closed/d.realTickets*100) : 0}%</strong> no período.</span></div>
-  `;
-}
-
-function resetReport() {
-  document.getElementById('uploadArea').style.display = 'flex';
-  document.getElementById('reportWrap').style.display = 'none';
-  document.getElementById('csvInput').value = '';
-}
-
-// CSV upload handlers
-document.getElementById('csvInput').addEventListener('change', e => {
-  const file = e.target.files[0]; if(!file) return;
-  Papa.parse(file, { header:true, skipEmptyLines:true, complete: r => processCSV(r.data) });
-});
-
-const dz = document.getElementById('dropZone');
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-dz.addEventListener('drop', e => {
-  e.preventDefault(); dz.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0]; if(!file) return;
-  Papa.parse(file, { header:true, skipEmptyLines:true, complete: r => processCSV(r.data) });
-});
-
-function loadDemo() {
-  const demo = [
-    {CARD_NAME:'Ajuste no cadastro de fornecedor',TAGS:'AJUSTES,TICKET FECHADO',COLOR:'green'},
-    {CARD_NAME:'FORE - Pagamento não processado',TAGS:'FORE,EM ANDAMENTO',COLOR:'orange'},
-    {CARD_NAME:'FORE notification auto',TAGS:'EMAILS FORE',COLOR:'gray'},
-    {CARD_NAME:'FORE notification auto 2',TAGS:'EMAILS FORE',COLOR:'gray'},
-    {CARD_NAME:'FORE notification auto 3',TAGS:'EMAILS FORE',COLOR:'gray'},
-    {CARD_NAME:'Erro ao aprovar budget',TAGS:'BUG,✨ Action required',COLOR:'red'},
-    {CARD_NAME:'Dúvida sobre verba adiantada',TAGS:'VERBAS,TICKET FECHADO',COLOR:'green'},
-    {CARD_NAME:'PO não enviada',TAGS:'PO,✨ Awaiting response',COLOR:'yellow'},
-    {CARD_NAME:'Acesso bloqueado para usuário',TAGS:'ACESSO,TICKET FECHADO',COLOR:'green'},
-    {CARD_NAME:'Relatório P&L incorreto',TAGS:'BUG,EM ANDAMENTO',COLOR:'orange'},
-    {CARD_NAME:'Integração Autentique falhando',TAGS:'INTEGRAÇÕES,✨ Action required',COLOR:'red'},
-    {CARD_NAME:'Dúvida sobre cashê teste',TAGS:'CASTING,TICKET FECHADO',COLOR:'green'},
-    {CARD_NAME:'Erro de cálculo de imposto',TAGS:'BUG,✨ Action required',COLOR:'red'},
-    {CARD_NAME:'FORE - Divergência de valor',TAGS:'FORE,TICKET FECHADO',COLOR:'green'},
-    {CARD_NAME:'Upload de NF não funciona',TAGS:'NF,EM ANDAMENTO',COLOR:'orange'},
-    {CARD_NAME:'FORE notification auto 4',TAGS:'EMAILS FORE',COLOR:'gray'},
-    {CARD_NAME:'FORE notification auto 5',TAGS:'EMAILS FORE',COLOR:'gray'},
-    {CARD_NAME:'Novo usuário não recebe email',TAGS:'ACESSO,TICKET FECHADO',COLOR:'green'},
-    {CARD_NAME:'Cronograma não exporta',TAGS:'AJUSTES,✨ Awaiting response',COLOR:'yellow'},
-    {CARD_NAME:'Multi-moeda com taxa errada',TAGS:'BUDGET,✨ Action required',COLOR:'red'},
-  ].map(r => ({'CARD NAME':r.CARD_NAME, TAGS:r.TAGS, COLOR:r.COLOR}));
-  processCSV(demo);
-}
-
-
-/* ════════════════════════════════════════════
-   ONE PAGER LOGIC
-════════════════════════════════════════════ */
-const OP_SP = [
-  ['Sprint 14','16/12'],['Sprint 15','06/01'],['Sprint 16','20/01'],
-  ['Sprint 17','03/02'],['Sprint 18','17/02'],['Sprint 19','03/03'],['Sprint 20','17/03']
-];
-const OP_SK = ['esc','rm','rec','ri','cu'];
-const OP_SL = ['ESCOPO','ROADMAP','RECURSOS','RISCO','CUSTO'];
-const OP_SC = ['linear-gradient(135deg,#15803d,#4ade80)','linear-gradient(135deg,#c2410c,#fb923c)','linear-gradient(135deg,#991b1b,#f87171)','rgba(255,255,255,.15)'];
-const OP_FIELDS = ['produto','stakeholder','data','entregas','resumo','equipe','indicadores','proximos','rA','rM','rB'];
-
-let opState = {
-  esc:0, rm:1, rec:1, ri:2, cu:1, curSprint:2,
-  items:[
-    {id:1,n:'Feature A',s:0,e:1,done:true},
-    {id:2,n:'Feature B',s:2,e:3,done:false},
-    {id:3,n:'Feature C',s:4,e:6,done:false},
-  ]
-};
-
-function opSave() {
-  const tx = {};
-  OP_FIELDS.forEach(f => { const el = document.getElementById('op-'+f); if(el) tx[f] = el.value; });
-  localStorage.setItem('ls2-op2', JSON.stringify({state:opState, tx}));
-}
-function opLoad() {
-  try {
-    const raw = localStorage.getItem('ls2-op2'); if(!raw) return;
-    const d = JSON.parse(raw);
-    if(d.state) opState = {...opState,...d.state};
-    if(d.tx) Object.entries(d.tx).forEach(([k,v]) => { const el = document.getElementById('op-'+k); if(el) el.value=v; });
-  } catch(e) {}
-}
-function opRenderStatus() {
-  const c = document.getElementById('op-status-rows'); c.innerHTML='';
-  OP_SK.forEach((k,i) => {
-    const row = document.createElement('div'); row.className='status-row-op';
-    row.innerHTML = `<span class="status-lbl">${OP_SL[i]}</span>`;
-    const dot = document.createElement('div'); dot.className='sdot';
-    dot.style.cssText = `width:12px;height:12px;background:${OP_SC[opState[k]]};`;
-    dot.title = ['Verde','Amarelo','Vermelho','N/A'][opState[k]];
-    dot.onclick = () => { opState[k]=(opState[k]+1)%4; opRenderStatus(); opRenderVisao(); opSave(); };
-    row.appendChild(dot); c.appendChild(row);
-  });
-}
-function opRenderVisao() {
-  const ns = OP_SK.map(k=>opState[k]).filter(v=>v<3);
-  const worst = ns.length ? Math.max(...ns) : 3;
-  document.getElementById('op-visao').style.background = OP_SC[worst];
-}
-function opRenderSprintHdr() {
-  const hdr = document.getElementById('op-sprint-hdr'); hdr.innerHTML='';
-  OP_SP.forEach(([n,d],i) => {
-    const c = document.createElement('div'); c.className='sprint-hdr-cell';
-    c.innerHTML=`<div class="sprint-name">${n}</div><div class="sprint-date">${d}</div>`;
-    hdr.appendChild(c);
-  });
-}
-function opRenderRoadmap() {
-  const wrap = document.getElementById('op-roadmap-rows'); wrap.innerHTML='';
-  const rows = [...opState.items,...Array(Math.max(0,4-opState.items.length)).fill(null)];
-  rows.forEach(item => {
-    const row = document.createElement('div'); row.className='item-row';
-    OP_SP.forEach((_,ci) => {
-      const cell = document.createElement('div');
-      cell.className = 'item-cell'+(ci===opState.curSprint?' cur':'');
-      if(ci===opState.curSprint){ const l=document.createElement('div'); l.className='cur-line'; cell.appendChild(l); }
-      row.appendChild(cell);
-    });
-    if(item) {
-      const bar = document.createElement('div');
-      bar.className = 'rbar '+(item.done?'done':'active');
-      bar.style.left = `calc(${item.s/7*100}% + 2px)`;
-      bar.style.width = `calc(${(item.e-item.s+1)/7*100}% - 4px)`;
-      bar.onclick = () => { item.done=!item.done; opRenderRoadmap(); opSave(); };
-      bar.innerHTML = `<span class="rbar-text">${item.n}</span>`;
-      if(item.done) bar.innerHTML+=`<span style="color:rgba(255,255,255,.8);font-size:11px;margin-left:4px;">✓</span>`;
-      const del = document.createElement('button'); del.textContent='✕'; del.className='np';
-      del.style.cssText='background:rgba(0,0,0,.3);border:none;border-radius:50%;width:14px;height:14px;color:rgba(255,255,255,.7);cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:4px;flex-shrink:0;padding:0;font-family:inherit;font-size:9px;line-height:1;';
-      del.onclick=e=>{e.stopPropagation();opState.items=opState.items.filter(it=>it.id!==item.id);opRenderRoadmap();opSave();};
-      bar.appendChild(del); row.appendChild(bar);
-    }
-    wrap.appendChild(row);
-  });
-}
-function opPopulateSelects() {
-  ['op-new-start','op-new-end','op-cur-sprint'].forEach(id => {
-    const sel = document.getElementById(id); if(!sel) return;
-    sel.innerHTML='';
-    OP_SP.forEach(([n],i) => { const o=document.createElement('option'); o.value=i; o.textContent=n; sel.appendChild(o); });
-    if(id==='op-cur-sprint') sel.value=opState.curSprint;
-  });
-}
-function opToggleAdd() {
-  document.getElementById('op-add-form').classList.toggle('open');
-}
-function opAddItem() {
-  const n = document.getElementById('op-new-name').value.trim(); if(!n) return;
-  const s = +document.getElementById('op-new-start').value;
-  const e = +document.getElementById('op-new-end').value;
-  opState.items.push({id:Date.now(),n,s,e,done:false});
-  document.getElementById('op-new-name').value='';
-  opRenderRoadmap(); opSave();
-  document.getElementById('op-add-form').classList.remove('open');
-}
-
-// auto-save on text input
-document.addEventListener('input', e => {
-  if(e.target.tagName==='TEXTAREA'||(e.target.tagName==='INPUT'&&e.target.type==='text')) opSave();
-});
-
-/* ════════════════════════════════════════════
-   HISTORY — CORE LOGIC
-════════════════════════════════════════════ */
-const HIST_KEY = 'ls2-history-v1';
-const HIST_MAX = 50;
-let histCurrentId = null;
-
-/* ── storage helpers ── */
-function histGetAll() {
-  try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch(e) { return []; }
-}
-function histSetAll(arr) {
-  try { localStorage.setItem(HIST_KEY, JSON.stringify(arr)); } catch(e) {
-    alert('Armazenamento cheio. Exclua alguns relatórios antigos para liberar espaço.');
-  }
-}
-
-/* ── freeze a DOM element into clean static HTML ── */
-function freezeEl(el) {
-  const c = el.cloneNode(true);
-  // remove interactive/print-excluded elements
-  c.querySelectorAll('.np, .report-actions, .hist-preview-bar, .task-filters, .add-form, .add-form-op').forEach(e => e.remove());
-  c.querySelectorAll('button, select').forEach(e => e.remove());
-  // textareas → divs
-  c.querySelectorAll('textarea').forEach(ta => {
-    const d = document.createElement('div');
-    d.style.cssText = 'white-space:pre-wrap;font-size:11px;line-height:1.6;color:inherit;min-height:16px;';
-    d.textContent = ta.value;
-    ta.replaceWith(d);
-  });
-  // inputs → spans
-  c.querySelectorAll('input[type=text]').forEach(inp => {
-    const s = document.createElement('span');
-    s.style.cssText = inp.style.cssText || '';
-    s.textContent = inp.value || '';
-    inp.replaceWith(s);
-  });
-  c.querySelectorAll('[onclick]').forEach(e => e.removeAttribute('onclick'));
-  return c.outerHTML;
-}
-
-/* ── build snapshot HTML per module ── */
-function buildSnapshot(type) {
-  if (type === 'suporte') {
-    const wrap = document.getElementById('reportWrap');
-    if (!wrap || wrap.style.display === 'none') return null;
-    return freezeEl(wrap);
-  }
-  if (type === 'horas') {
-    const wrap = document.getElementById('h-report-wrap');
-    if (!wrap || wrap.style.display === 'none') return null;
-    return freezeEl(wrap);
-  }
-  if (type === 'op') {
-    const produto     = document.getElementById('op-produto').value || 'LandscapeOS 2';
-    const stakeholder = document.getElementById('op-stakeholder').value || '';
-    const data        = document.getElementById('op-data').value || new Date().toLocaleDateString('pt-BR');
-    const body = document.querySelector('#screen-op .op-body');
-    if (!body) return null;
-    const tmp = document.createElement('div');
-    tmp.innerHTML = `<div style="padding:10px 0 16px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:10px;display:flex;gap:16px;align-items:baseline;font-size:13px;">
-      <strong style="font-size:16px;">${produto}</strong>
-      ${stakeholder ? `<span style="color:rgba(226,232,240,.45)">·</span><span style="color:rgba(226,232,240,.65)">${stakeholder}</span>` : ''}
-      <span style="margin-left:auto;color:rgba(226,232,240,.45);font-size:11px;">${data}</span>
-    </div>`;
-    tmp.appendChild(body.cloneNode(true));
-    return freezeEl(tmp);
-  }
-  return null;
-}
-
-/* ── get metadata per module ── */
-function buildMeta(type) {
-  if (type === 'suporte') {
-    const period = document.getElementById('rptPeriod')?.textContent || '';
-    return { title: 'Relatório de Suporte', period };
-  }
-  if (type === 'horas') {
-    const period = document.getElementById('h-rpt-period')?.textContent || '';
-    return { title: 'Horas de Desenvolvimento', period };
-  }
-  if (type === 'op') {
-    const produto = document.getElementById('op-produto').value || 'One Pager';
-    const data    = document.getElementById('op-data').value || new Date().toLocaleDateString('pt-BR');
-    return { title: produto, period: data };
-  }
-  return { title: '', period: '' };
-}
-
-/* ── save entry ── */
-function histSave(type) {
-  const html = buildSnapshot(type);
-  if (!html) { alert('Gere o relatório primeiro antes de salvar.'); return; }
-  const meta = buildMeta(type);
-  const entry = {
-    id:      Date.now(),
-    type,
-    title:   meta.title,
-    period:  meta.period,
-    savedAt: new Date().toISOString(),
-    html,
-  };
-  const all = histGetAll();
-  all.unshift(entry);
-  histSetAll(all.slice(0, HIST_MAX));
-  histUpdateHubCount();
-  showToast();
-}
-
-/* ── delete entry ── */
-function histDelete(id) {
-  if (!confirm('Excluir este relatório do histórico?')) return;
-  histSetAll(histGetAll().filter(e => e.id !== id));
-  histRenderList(document.querySelector('.hfilt.active')?.dataset.type || 'ALL');
-  histUpdateHubCount();
-}
-
-/* ── view entry ── */
-function histView(id) {
-  const entry = histGetAll().find(e => e.id === id);
-  if (!entry) return;
-  histCurrentId = id;
-  document.getElementById('h-hist-list').style.display = 'none';
-  document.getElementById('h-hist-preview').style.display = 'block';
-  const content = document.getElementById('h-hist-preview-content');
-  const isDark = entry.type === 'op';
-  content.className = isDark ? 'hist-preview-dark' : 'hist-preview-light';
-  content.innerHTML = entry.html;
-}
-
-function histBackToList() {
-  document.getElementById('h-hist-preview').style.display = 'none';
-  document.getElementById('h-hist-list').style.display = 'block';
-  histCurrentId = null;
-}
-
-/* ── print a history entry ── */
-function histPrintCurrent() {
-  if (!histCurrentId) return;
-  const entry = histGetAll().find(e => e.id === histCurrentId);
-  if (!entry) return;
-  const frame = document.getElementById('print-frame');
-  const isDark = entry.type === 'op';
-  frame.innerHTML = isDark
-    ? `<div style="font-family:'Inter',system-ui,sans-serif;font-size:12px;font-weight:300;background:#0c0f1a;color:#e2e8f0;padding:10px;">${entry.html}</div>`
-    : `<div style="font-family:'Inter',system-ui,sans-serif;font-size:12px;background:white;color:#111;padding:32px;">${entry.html}</div>`;
-  document.body.classList.add('ph');
-  window.print();
-  setTimeout(() => { document.body.classList.remove('ph'); frame.innerHTML = ''; }, 500);
-}
-
-/* ── render history list ── */
-function histRenderList(filter) {
-  filter = filter || 'ALL';
-  const all = histGetAll();
-
-  // filter tabs
-  const types = [
-    { key:'ALL',     label:'Todos', count: all.length },
-    { key:'suporte', label:'Suporte', count: all.filter(e=>e.type==='suporte').length },
-    { key:'horas',   label:'Horas Dev', count: all.filter(e=>e.type==='horas').length },
-    { key:'op',      label:'One Pager', count: all.filter(e=>e.type==='op').length },
-  ];
-  document.getElementById('h-hist-filters').innerHTML = types.map(t =>
-    `<button class="hfilt${filter===t.key?' active':''}" data-type="${t.key}" onclick="histRenderList('${t.key}')">
-      ${t.label} <span style="opacity:.6;font-size:10px;">${t.count}</span>
-    </button>`
-  ).join('');
-
-  const shown = filter === 'ALL' ? all : all.filter(e=>e.type===filter);
-  const container = document.getElementById('h-hist-entries');
-
-  if (!shown.length) {
-    container.innerHTML = `<div class="hist-empty">
-      <div class="hist-empty-icon">📋</div>
-      <div style="font-size:15px;color:var(--text);margin-bottom:8px;">Nenhum relatório salvo ainda</div>
-      <div style="font-size:12px;">Gere um relatório em qualquer módulo e clique em <strong>☁ Salvar</strong>.</div>
-    </div>`;
-    return;
-  }
-
-  const BADGE = { suporte:'hb-suporte', horas:'hb-horas', op:'hb-op' };
-  const LABEL = { suporte:'Suporte', horas:'Horas Dev', op:'One Pager' };
-
-  container.innerHTML = shown.map(e => {
-    const d = new Date(e.savedAt);
-    const dateStr = d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-    return `<div class="hist-entry">
-      <span class="hist-badge ${BADGE[e.type]||''}">${LABEL[e.type]||e.type}</span>
-      <div class="hist-info">
-        <div class="hist-title">${e.title}</div>
-        <div class="hist-meta">${e.period ? e.period + ' · ' : ''}${dateStr}</div>
-      </div>
-      <div class="hist-actions">
-        <button class="ha-btn" onclick="histView(${e.id})">Ver</button>
-        <button class="ha-btn primary" onclick="histViewAndPrint(${e.id})">↓ PDF</button>
-        <button class="ha-btn danger" onclick="histDelete(${e.id})">✕</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function histViewAndPrint(id) {
-  histView(id);
-  setTimeout(() => histPrintCurrent(), 150);
-}
-
-/* ── hub count badge ── */
-function histUpdateHubCount() {
-  const n = histGetAll().length;
-  const el = document.getElementById('hub-hist-count');
-  if (el) el.textContent = n > 0 ? `${n} salvo${n!==1?'s':''}` : '';
-}
-
-/* ── toast ── */
-function showToast() {
-  const t = document.getElementById('hist-toast');
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
-
-/* init hub count */
-histUpdateHubCount();
-opLoad();
-opRenderStatus(); opRenderVisao(); opRenderSprintHdr(); opRenderRoadmap(); opPopulateSelects();
-
-
-/* ════════════════════════════════════════════
-   HORAS DEV — LOGIC
-════════════════════════════════════════════ */
-const CAT_ORDER = ['NOVA FEATURE','SUPORTE','BUG','CALL','ROTINA'];
-const CAT_COLORS = {
-  'NOVA FEATURE': { bar:'#4ade80', cls:'cat-nova' },
-  'SUPORTE':      { bar:'#fb923c', cls:'cat-suporte' },
-  'BUG':          { bar:'#f87171', cls:'cat-bug' },
-  'CALL':         { bar:'#60a5fa', cls:'cat-call' },
-  'ROTINA':       { bar:'#a78bfa', cls:'cat-rotina' },
-};
-
-let hAllRows = [];      // raw parsed rows
-let hFilterSis = 'ALL'; // current system filter
-let hFilterSem = 'ALL'; // current week filter
-
-/* time parsing */
-function parseTime(str) {
-  if (!str || typeof str !== 'string') return 0;
-  const s = str.trim().replace(',','.');
-  const parts = s.split(':').map(Number);
-  if (parts.length >= 2) return parts[0]*60 + (parts[1]||0) + (parts[2]||0)/60;
-  return parseFloat(s)*60 || 0;
-}
-function fmtTime(mins) {
-  const h = Math.floor(mins/60), m = Math.round(mins%60);
-  return `${h}:${String(m).padStart(2,'0')}`;
-}
-
-/* find column name flexibly */
-function findCol(headers, candidates) {
-  for (const c of candidates) {
-    const found = headers.find(h => h && h.toUpperCase().includes(c.toUpperCase()));
-    if (found) return found;
-  }
-  return null;
-}
-
-function processHorasCSV(data) {
-  if (!data.length) { alert('CSV vazio ou inválido.'); return; }
-  const headers = Object.keys(data[0]);
-  const colMes  = findCol(headers, ['MÊS','MES','MONTH']);
-  const colSem  = findCol(headers, ['SEMANA','WEEK','SEM']);
-  const colHrs  = findCol(headers, ['HORAS','HORA','TIME','HRS']);
-  const colSis  = findCol(headers, ['SISTEMA','SYSTEM','SYS']);
-  const colCat  = findCol(headers, ['CATEGORIA','CATEGORY','CAT']);
-  const colDesc = findCol(headers, ['DESCRIÇÃO','DESCRICAO','DESC','DESCRIPTION']);
-
-  hAllRows = data
-    .filter(r => colHrs && r[colHrs] && r[colHrs].trim())
-    .map(r => ({
-      mes:   (r[colMes]  || '').trim().toUpperCase(),
-      sem:   (r[colSem]  || '').trim(),
-      mins:  parseTime(r[colHrs] || ''),
-      sis:   (r[colSis]  || '').trim().toUpperCase(),
-      cat:   (r[colCat]  || '').trim().toUpperCase(),
-      desc:  (r[colDesc] || '').trim(),
-    }))
-    .filter(r => r.mins > 0);
-
-  hFilterSis = 'ALL';
-  hFilterSem = 'ALL';
-  renderHorasReport();
-}
-
-function renderHorasReport() {
-  document.getElementById('h-upload-area').style.display = 'none';
-  document.getElementById('h-report-wrap').style.display = 'block';
-
-  const rows = hAllRows;
-  const mes = [...new Set(rows.map(r=>r.mes).filter(Boolean))].join(' / ') || 'Período';
-  const semanas = [...new Set(rows.map(r=>r.sem))].filter(Boolean).sort((a,b)=>+a-+b);
-  const sistemas = [...new Set(rows.map(r=>r.sis))].filter(Boolean).sort();
-
-  document.getElementById('h-rpt-period').textContent = mes;
-  document.getElementById('h-rpt-footer-right').textContent = 'Gerado em ' + new Date().toLocaleDateString('pt-BR');
-
-  const totalMins = rows.reduce((a,r)=>a+r.mins, 0);
-  const os2Mins   = rows.filter(r=>r.sis==='OS2').reduce((a,r)=>a+r.mins, 0);
-  const foreMins  = rows.filter(r=>r.sis==='FORE').reduce((a,r)=>a+r.mins, 0);
-
-  /* ── summary cards ── */
-  document.getElementById('h-metrics').innerHTML = `
-    <div class="metric"><div class="metric-label">Total horas mês</div><div class="metric-value time-val">${fmtTime(totalMins)}</div><div class="metric-sub">${rows.length} lançamentos</div></div>
-    <div class="metric"><div class="metric-label">OS2</div><div class="metric-value time-val" style="color:#3730a3">${fmtTime(os2Mins)}</div><div class="metric-sub">${Math.round(os2Mins/totalMins*100)||0}% do total</div></div>
-    <div class="metric"><div class="metric-label">FORE</div><div class="metric-value time-val" style="color:#854d0e">${fmtTime(foreMins)}</div><div class="metric-sub">${Math.round(foreMins/totalMins*100)||0}% do total</div></div>
-    <div class="metric"><div class="metric-label">Semanas</div><div class="metric-value">${semanas.length}</div><div class="metric-sub">${semanas.map(s=>'S'+s).join(' · ')}</div></div>
-  `;
-
-  /* ── weekly table ── */
-  const weekRows = semanas.map(s => {
-    const sr = rows.filter(r=>r.sem===s);
-    const sOs2 = sr.filter(r=>r.sis==='OS2').reduce((a,r)=>a+r.mins,0);
-    const sFore= sr.filter(r=>r.sis==='FORE').reduce((a,r)=>a+r.mins,0);
-    return `<tr>
-      <td><strong>Semana ${s}</strong></td>
-      ${sistemas.includes('OS2')  ? `<td class="time-val"><span class="sys-badge sys-os2">OS2</span> ${fmtTime(sOs2)}</td>` : ''}
-      ${sistemas.includes('FORE') ? `<td class="time-val"><span class="sys-badge sys-fore">FORE</span> ${fmtTime(sFore)}</td>` : ''}
-      <td class="time-val week-total">${fmtTime(sOs2+sFore)}</td>
-    </tr>`;
-  });
-  weekRows.push(`<tr>
-    <td><strong>TOTAL</strong></td>
-    ${sistemas.includes('OS2')  ? `<td class="time-val week-total">${fmtTime(os2Mins)}</td>` : ''}
-    ${sistemas.includes('FORE') ? `<td class="time-val week-total">${fmtTime(foreMins)}</td>` : ''}
-    <td class="time-val week-total">${fmtTime(totalMins)}</td>
-  </tr>`);
-  document.getElementById('h-week-table').innerHTML = `
-    <div class="rpt-card-title"><span class="dot" style="background:#60a5fa;width:8px;height:8px;border-radius:50%;display:inline-block;"></span>&nbsp;Horas por semana</div>
-    <table class="week-table">
-      <thead><tr><th>Semana</th>${sistemas.includes('OS2')?'<th>OS2</th>':''}${sistemas.includes('FORE')?'<th>FORE</th>':''}<th>Total</th></tr></thead>
-      <tbody>${weekRows.join('')}</tbody>
-    </table>`;
-
-  /* ── category breakdown ── */
-  function catBreakdown(sys) {
-    const sr = rows.filter(r=>r.sis===sys);
-    const tot = sr.reduce((a,r)=>a+r.mins,0);
-    const cats = CAT_ORDER.map(c => {
-      const m = sr.filter(r=>r.cat===c).reduce((a,r)=>a+r.mins,0);
-      return { c, m };
-    }).filter(x=>x.m>0);
-    // add unknown cats
-    const known = new Set(CAT_ORDER);
-    const unk = {};
-    sr.forEach(r => { if(!known.has(r.cat)&&r.cat) unk[r.cat]=(unk[r.cat]||0)+r.mins; });
-    Object.entries(unk).forEach(([c,m])=>cats.push({c,m}));
-    if (!cats.length) return '<p style="font-size:12px;color:#aaa;padding:8px 0;">Sem dados.</p>';
-    return cats.sort((a,b)=>b.m-a.m).map(({c,m}) => {
-      const pct = tot ? Math.round(m/tot*100) : 0;
-      const cc = CAT_COLORS[c] || { bar:'#94a3b8', cls:'cat-other' };
-      return `<div class="hcat-row">
-        <span class="cat-pill ${cc.cls}">${c}</span>
-        <div class="hcat-bar-wrap"><div class="hcat-bar-fill" style="width:${pct}%;background:${cc.bar};"></div></div>
-        <span class="hcat-time">${fmtTime(m)}</span>
-      </div>`;
-    }).join('');
-  }
-
-  const catCols = sistemas.map(sys => `
-    <div class="rpt-card">
-      <div class="rpt-card-title">
-        <span class="dot" style="background:${sys==='OS2'?'#818cf8':'#fbbf24'};width:8px;height:8px;border-radius:50%;display:inline-block;"></span>
-        &nbsp;${sys} — por categoria
-      </div>
-      ${catBreakdown(sys)}
-    </div>`).join('');
-  document.getElementById('h-cat-cols').innerHTML = catCols;
-  document.getElementById('h-cat-cols').style.gridTemplateColumns = `repeat(${Math.min(sistemas.length,2)},1fr)`;
-
-  /* ── filter buttons ── */
-  const semFilters = semanas.map(s=>`<button class="filter-btn${hFilterSem===s?' active':''}" onclick="hSetSemFilter('${s}')">Semana ${s}</button>`).join('');
-  const sisFilters = sistemas.map(s=>`<button class="filter-btn${hFilterSis===s?' active':''}" onclick="hSetSisFilter('${s}')">${s}</button>`).join('');
-  document.getElementById('h-task-filters').innerHTML = `
-    <button class="filter-btn${hFilterSem==='ALL'?' active':''}" onclick="hSetSemFilter('ALL')">Todas semanas</button>
-    ${semFilters}
-    <span style="width:1px;height:16px;background:#e2e8f0;display:inline-block;margin:0 4px;"></span>
-    <button class="filter-btn${hFilterSis==='ALL'?' active':''}" onclick="hSetSisFilter('ALL')">OS2 + FORE</button>
-    ${sisFilters}
-  `;
-
-  renderHorasTasks();
-}
-
-function renderHorasTasks() {
-  let filtered = hAllRows;
-  if (hFilterSem !== 'ALL') filtered = filtered.filter(r=>r.sem===hFilterSem);
-  if (hFilterSis !== 'ALL') filtered = filtered.filter(r=>r.sis===hFilterSis);
-  const total = filtered.reduce((a,r)=>a+r.mins,0);
-
-  if (!filtered.length) {
-    document.getElementById('h-task-list').innerHTML = '<div class="no-tasks">Nenhum lançamento encontrado para este filtro.</div>';
-    document.getElementById('h-task-total').textContent = '';
-    return;
-  }
-  document.getElementById('h-task-total').textContent = `${filtered.length} lançamentos · ${fmtTime(total)}`;
-  document.getElementById('h-task-list').innerHTML = filtered.map(r => {
-    const cc = CAT_COLORS[r.cat] || { cls:'cat-other' };
-    const sysCls = r.sis==='FORE' ? 'sys-fore' : 'sys-os2';
-    return `<div class="task-row">
-      <span class="task-week">S${r.sem} <span class="sys-badge ${sysCls}">${r.sis}</span></span>
-      <span class="cat-pill ${cc.cls}">${r.cat||'—'}</span>
-      <span class="task-time">${fmtTime(r.mins)}</span>
-      <span class="task-desc">${r.desc||'—'}</span>
-    </div>`;
-  }).join('');
-}
-
-function hSetSemFilter(v) { hFilterSem=v; renderHorasReport(); }
-function hSetSisFilter(v) { hFilterSis=v; renderHorasReport(); }
-function resetHoras() {
-  hAllRows=[];
-  document.getElementById('h-upload-area').style.display='flex';
-  document.getElementById('h-report-wrap').style.display='none';
-  document.getElementById('h-csv-input').value='';
-}
-function loadHorasDemo() {
-  const demo = [
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'1:00:00',SISTEMA:'OS2',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'download do recibo de verbas'},
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'2:00:00',SISTEMA:'OS2',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'refatoração do job de buscar e cadastrar clientes do vbs'},
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'0:30:00',SISTEMA:'OS2',CATEGORIA:'SUPORTE',DESCRIÇÃO:'ajuste de bloqueio de busca de receitas e despesas'},
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'0:40:00',SISTEMA:'OS2',CATEGORIA:'CALL',DESCRIÇÃO:'call semanal 02/02'},
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'6:00:00',SISTEMA:'OS2',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'analisando e ajustes de osLight'},
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'1:00:00',SISTEMA:'OS2',CATEGORIA:'SUPORTE',DESCRIÇÃO:'ajustes de calculo de saldo em cashflow'},
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'3:00:00',SISTEMA:'OS2',CATEGORIA:'BUG',DESCRIÇÃO:'bug - cashflow criando com outra conta bancária'},
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'2:00:00',SISTEMA:'OS2',CATEGORIA:'BUG',DESCRIÇÃO:'analisando duplicação de valor de verba ao sincronizar planilha'},
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'3:00:00',SISTEMA:'FORE',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'reconhecimento automático de template - ocr'},
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'1:00:00',SISTEMA:'FORE',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'busca de novos dados da nota fiscal'},
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'4:00:00',SISTEMA:'FORE',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'melhorias de regex e testes com notas diferentes - ocr'},
-    {MÊS:'FEVEREIRO',SEMANA:'1','HORAS/MINUTOS':'5:00:00',SISTEMA:'FORE',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'Integração de novo ocr com fore'},
-    {MÊS:'FEVEREIRO',SEMANA:'2','HORAS/MINUTOS':'1:30:00',SISTEMA:'OS2',CATEGORIA:'SUPORTE',DESCRIÇÃO:'ajuste de comissões automáticas'},
-    {MÊS:'FEVEREIRO',SEMANA:'2','HORAS/MINUTOS':'8:00:00',SISTEMA:'OS2',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'Refatoração de onboarding'},
-    {MÊS:'FEVEREIRO',SEMANA:'2','HORAS/MINUTOS':'3:00:00',SISTEMA:'OS2',CATEGORIA:'BUG',DESCRIÇÃO:'analisando bug de abertura de sublinhas em prod'},
-    {MÊS:'FEVEREIRO',SEMANA:'2','HORAS/MINUTOS':'1:00:00',SISTEMA:'OS2',CATEGORIA:'BUG',DESCRIÇÃO:'investigação de casos de comissões variáveis'},
-    {MÊS:'FEVEREIRO',SEMANA:'2','HORAS/MINUTOS':'5:00:00',SISTEMA:'FORE',CATEGORIA:'SUPORTE',DESCRIÇÃO:'notificações personalizadas'},
-    {MÊS:'FEVEREIRO',SEMANA:'2','HORAS/MINUTOS':'1:00:00',SISTEMA:'FORE',CATEGORIA:'BUG',DESCRIÇÃO:'analisando bug de notificações'},
-    {MÊS:'FEVEREIRO',SEMANA:'2','HORAS/MINUTOS':'8:00:00',SISTEMA:'FORE',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'aprimoramento da extração de informações de imagem no ocr'},
-    {MÊS:'FEVEREIRO',SEMANA:'3','HORAS/MINUTOS':'4:00:00',SISTEMA:'OS2',CATEGORIA:'ROTINA',DESCRIÇÃO:'Verificação de rotas do vbs'},
-    {MÊS:'FEVEREIRO',SEMANA:'3','HORAS/MINUTOS':'1:00:00',SISTEMA:'OS2',CATEGORIA:'BUG',DESCRIÇÃO:'ajuste de bug de atualização do fornecedor'},
-    {MÊS:'FEVEREIRO',SEMANA:'3','HORAS/MINUTOS':'7:00:00',SISTEMA:'OS2',CATEGORIA:'SUPORTE',DESCRIÇÃO:'investigando ajustes de ux dentro de budget'},
-    {MÊS:'FEVEREIRO',SEMANA:'3','HORAS/MINUTOS':'3:00:00',SISTEMA:'FORE',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'melhorias de regex do ocr'},
-    {MÊS:'FEVEREIRO',SEMANA:'3','HORAS/MINUTOS':'2:00:00',SISTEMA:'FORE',CATEGORIA:'ROTINA',DESCRIÇÃO:'alinhamentos entre o time'},
-    {MÊS:'FEVEREIRO',SEMANA:'4','HORAS/MINUTOS':'5:00:00',SISTEMA:'OS2',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'ajuste de permissions no budget v2'},
-    {MÊS:'FEVEREIRO',SEMANA:'4','HORAS/MINUTOS':'2:00:00',SISTEMA:'OS2',CATEGORIA:'ROTINA',DESCRIÇÃO:'alinhamentos entre o time'},
-    {MÊS:'FEVEREIRO',SEMANA:'4','HORAS/MINUTOS':'4:00:00',SISTEMA:'FORE',CATEGORIA:'SUPORTE',DESCRIÇÃO:'ajuste de integração CNPJ'},
-    {MÊS:'FEVEREIRO',SEMANA:'4','HORAS/MINUTOS':'5:00:00',SISTEMA:'FORE',CATEGORIA:'NOVA FEATURE',DESCRIÇÃO:'novo fluxo de aprovação de NFs'},
-  ];
-  processHorasCSV(demo);
-}
-
-/* ════════════════════════════════════════════
-   HORAS — GOOGLE SHEETS CONNECTION
-════════════════════════════════════════════ */
-const SHEETS_KEY = 'ls2-horas-sheets';
-let hAutoRefreshTimer = null;
-
-/* ── tab switching ── */
-function hSwitchTab(tab) {
-  const isSheets = tab === 'sheets';
-  document.getElementById('h-panel-upload').style.display = isSheets ? 'none' : 'block';
-  document.getElementById('h-panel-sheets').style.display = isSheets ? 'block' : 'none';
-  document.getElementById('h-tab-upload').style.background = isSheets ? '#f7f8fa' : 'white';
-  document.getElementById('h-tab-upload').style.color = isSheets ? '#888' : '#444';
-  document.getElementById('h-tab-sheets').style.background = isSheets ? 'white' : '#f7f8fa';
-  document.getElementById('h-tab-sheets').style.color = isSheets ? '#444' : '#888';
-  if (isSheets) hLoadSheetsUI();
-}
-
-/* ── method change ── */
-function hMethodChange(val) {
-  document.getElementById('h-instr-publish').style.display = val === 'publish' ? 'block' : 'none';
-  document.getElementById('h-instr-apps').style.display   = val === 'appscript' ? 'block' : 'none';
-}
-
-/* ── copy Apps Script code ── */
-function hCopyScript() {
-  const code = document.getElementById('h-apps-code').textContent;
-  navigator.clipboard.writeText(code).then(() => {
-    showToast(); document.getElementById('hist-toast').textContent = '✓ Código copiado!';
-    setTimeout(() => document.getElementById('hist-toast').textContent = '✓ Salvo no histórico', 2600);
-  }).catch(() => alert('Copie o código manualmente.'));
-}
-
-/* ── load saved connection into UI ── */
-function hLoadSheetsUI() {
-  const cfg = hGetSheetsCfg();
-  if (cfg) {
-    document.getElementById('h-sheets-url').value = cfg.url;
-    const methodEl = document.querySelector(`input[name="h-method"][value="${cfg.method}"]`);
-    if (methodEl) { methodEl.checked = true; hMethodChange(cfg.method); }
-    document.getElementById('h-auto-refresh').checked = cfg.autoRefresh || false;
-    document.getElementById('h-refresh-interval').value = cfg.interval || 5;
-    const status = document.getElementById('h-sheets-status');
-    status.style.display = 'flex';
-    document.getElementById('h-sheets-status-text').textContent =
-      `Conectado · Última atualização: ${cfg.lastFetched || 'nunca'}`;
-  }
-}
-
-/* ── storage helpers ── */
-function hGetSheetsCfg() {
-  try { return JSON.parse(localStorage.getItem(SHEETS_KEY)); } catch(e) { return null; }
-}
-function hSetSheetsCfg(cfg) {
-  localStorage.setItem(SHEETS_KEY, JSON.stringify(cfg));
-}
-
-/* ── connect ── */
-async function hSheetsConnect() {
-  const url = document.getElementById('h-sheets-url').value.trim();
-  const method = document.querySelector('input[name="h-method"]:checked')?.value || 'publish';
-  const errEl = document.getElementById('h-sheets-error');
-  errEl.style.display = 'none';
-
-  if (!url) { errEl.textContent = 'Cole a URL antes de conectar.'; errEl.style.display = 'block'; return; }
-
-  const btn = document.querySelector('#h-panel-sheets button[onclick="hSheetsConnect()"]');
-  btn.textContent = 'Conectando...'; btn.disabled = true;
-
-  try {
-    const rows = await hFetchSheets(url, method);
-    if (!rows || !rows.length) throw new Error('Nenhum dado retornado. Verifique se a planilha está publicada corretamente.');
-
-    const now = new Date().toLocaleString('pt-BR');
-    const autoRefresh = document.getElementById('h-auto-refresh').checked;
-    const interval = parseInt(document.getElementById('h-refresh-interval').value);
-
-    hSetSheetsCfg({ url, method, autoRefresh, interval, lastFetched: now });
-    hStartAutoRefresh();
-    hUpdateLiveIndicator(now);
-    processHorasCSV(rows);
-
-  } catch(err) {
-    errEl.textContent = err.message || 'Erro ao buscar dados. Verifique a URL e as permissões.';
-    errEl.style.display = 'block';
-  } finally {
-    btn.textContent = 'Conectar'; btn.disabled = false;
-  }
-}
-
-/* ── fetch from either source ── */
-async function hFetchSheets(url, method) {
-  const cleanUrl = url.trim();
-  if (method === 'appscript') {
-    const res = await fetch(cleanUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    return Array.isArray(json) ? json : [];
-  } else {
-    // Publish to Web CSV — use PapaParse
-    return new Promise((resolve, reject) => {
-      Papa.parse(cleanUrl, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: r => resolve(r.data),
-        error: e => reject(new Error('Erro ao baixar CSV: ' + e.message)),
-      });
-    });
-  }
-}
-
-/* ── manual refresh ── */
-async function hSheetsRefresh() {
-  const cfg = hGetSheetsCfg();
-  if (!cfg) return;
-  const btn = document.getElementById('h-refresh-btn');
-  const topBtn = document.getElementById('h-refresh-btn');
-  if (btn) { btn.textContent = '⟳ Buscando...'; btn.disabled = true; }
-
-  try {
-    const rows = await hFetchSheets(cfg.url, cfg.method);
-    if (!rows || !rows.length) throw new Error('Sem dados');
-    const now = new Date().toLocaleString('pt-BR');
-    cfg.lastFetched = now;
-    hSetSheetsCfg(cfg);
-    hUpdateLiveIndicator(now);
-    processHorasCSV(rows);
-  } catch(err) {
-    alert('Erro ao atualizar: ' + err.message);
-  } finally {
-    if (btn) { btn.textContent = '⟳ Atualizar dados'; btn.disabled = false; }
-  }
-}
-
-/* ── auto-refresh timer ── */
-function hStartAutoRefresh() {
-  if (hAutoRefreshTimer) clearInterval(hAutoRefreshTimer);
-  const cfg = hGetSheetsCfg();
-  if (!cfg || !cfg.autoRefresh) return;
-  hAutoRefreshTimer = setInterval(() => hSheetsRefresh(), cfg.interval * 60 * 1000);
-}
-
-/* ── disconnect ── */
-function hSheetsDisconnect() {
-  if (hAutoRefreshTimer) clearInterval(hAutoRefreshTimer);
-  localStorage.removeItem(SHEETS_KEY);
-  document.getElementById('h-sheets-status').style.display = 'none';
-  document.getElementById('h-sheets-url').value = '';
-  document.getElementById('h-live-indicator').style.display = 'none';
-  document.getElementById('h-rpt-refresh-btn').style.display = 'none';
-}
-
-/* ── update live indicator in topbar ── */
-function hUpdateLiveIndicator(lastFetched) {
-  const ind = document.getElementById('h-live-indicator');
-  ind.style.display = 'flex';
-  document.getElementById('h-live-label').textContent = 'Atualizado ' + (lastFetched || '');
-  document.getElementById('h-rpt-refresh-btn').style.display = 'inline-block';
-  const statusEl = document.getElementById('h-sheets-status');
-  if (statusEl) {
-    statusEl.style.display = 'flex';
-    document.getElementById('h-sheets-status-text').textContent = 'Conectado · Última atualização: ' + (lastFetched || '');
-  }
-}
-
-/* ── auto-connect on load if configured ── */
-(async function hAutoConnect() {
-  const cfg = hGetSheetsCfg();
-  if (!cfg) return;
-  try {
-    const rows = await hFetchSheets(cfg.url, cfg.method);
-    if (rows && rows.length) {
-      const now = new Date().toLocaleString('pt-BR');
-      cfg.lastFetched = now; hSetSheetsCfg(cfg);
-      hUpdateLiveIndicator(now);
-      processHorasCSV(rows);
-      hStartAutoRefresh();
-    }
-  } catch(e) { /* silent fail, user can reconnect manually */ }
-})();
-
-/* upload handlers */
-document.getElementById('h-csv-input').addEventListener('change', e => {
-  const file = e.target.files[0]; if(!file) return;
-  Papa.parse(file, { header:true, skipEmptyLines:true, complete: r => processHorasCSV(r.data) });
-});
-const hDz = document.getElementById('h-drop-zone');
-hDz.addEventListener('dragover', e=>{e.preventDefault();hDz.classList.add('drag-over');});
-hDz.addEventListener('dragleave', ()=>hDz.classList.remove('drag-over'));
-hDz.addEventListener('drop', e=>{
-  e.preventDefault();hDz.classList.remove('drag-over');
-  const file=e.dataTransfer.files[0]; if(!file) return;
-  Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>processHorasCSV(r.data)});
-});
-</script>
-<!-- ══════════════════════════════════════════
-  SCREEN 4 — HISTORY
-══════════════════════════════════════════ -->
-<div id="screen-hist" class="screen">
-  <div class="topbar">
-    <button class="back-btn" onclick="goTo('hub')">← Voltar</button>
-    <div class="topbar-sep"></div>
-    <span class="topbar-logo">Landscape<span>OS 2</span></span>
-    <span class="topbar-sep"></span>
-    <span class="topbar-title">Histórico de relatórios</span>
-  </div>
-
-  <!-- List view -->
-  <div id="h-hist-list" class="hist-list-wrap">
-    <div class="hist-filter-bar" id="h-hist-filters"></div>
-    <div id="h-hist-entries"></div>
-  </div>
-
-  <!-- Preview view -->
-  <div id="h-hist-preview" style="display:none;">
-    <div class="hist-preview-wrap">
-      <div class="hist-preview-bar np">
-        <button class="ha-btn" onclick="histBackToList()">← Lista</button>
-        <button class="ha-btn primary" onclick="histPrintCurrent()">↓ PDF</button>
-      </div>
-      <div id="h-hist-preview-content"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Print frame: only used when printing a history item -->
-<div id="print-frame"></div>
-
-<!-- Toast notification -->
-<div class="hist-toast" id="hist-toast">✓ Salvo no histórico</div>
-
-</body>
 <div id="screen-horas" class="screen">
   <div class="topbar">
-    <button class="back-btn" onclick="goTo('hub')">← Voltar</button>
+    <button class="back-btn" data-go="hub">← Voltar</button>
     <div class="topbar-sep"></div>
     <span class="topbar-logo">Landscape<span>OS 2</span></span>
     <span class="topbar-sep"></span>
@@ -1629,7 +297,7 @@ hDz.addEventListener('drop', e=>{
     <div id="h-live-indicator" style="display:none;margin-left:auto;display:none;align-items:center;gap:8px;">
       <span id="h-live-dot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;"></span>
       <span id="h-live-label" style="font-size:11px;color:var(--muted);"></span>
-      <button id="h-refresh-btn" onclick="hSheetsRefresh()" style="background:none;border:1px solid var(--border-md);border-radius:4px;padding:3px 10px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit;">⟳ Atualizar</button>
+      <button id="h-refresh-btn" style="background:none;border:1px solid var(--border-md);border-radius:4px;padding:3px 10px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit;">⟳ Atualizar</button>
     </div>
   </div>
 
@@ -1641,11 +309,11 @@ hDz.addEventListener('drop', e=>{
 
     <!-- Mode tabs -->
     <div style="display:flex;gap:0;border:1px solid #ddd;border-radius:8px;overflow:hidden;margin-bottom:28px;width:100%;max-width:480px;">
-      <button id="h-tab-upload" onclick="hSwitchTab('upload')"
+      <button id="h-tab-upload" id="h-tab-upload"
         style="flex:1;padding:9px 0;font-size:12px;font-family:inherit;cursor:pointer;border:none;background:white;color:#444;font-weight:500;border-right:1px solid #ddd;transition:background .15s;">
         ↑ Upload CSV
       </button>
-      <button id="h-tab-sheets" onclick="hSwitchTab('sheets')"
+      <button id="h-tab-sheets" id="h-tab-sheets"
         style="flex:1;padding:9px 0;font-size:12px;font-family:inherit;cursor:pointer;border:none;background:#f7f8fa;color:#888;transition:background .15s;">
         ⟳ Google Sheets ao vivo
       </button>
@@ -1664,7 +332,7 @@ hDz.addEventListener('drop', e=>{
         <strong>SISTEMA</strong>, <strong>CATEGORIA</strong> e <strong>DESCRIÇÃO</strong>.<br>
         Formatos de tempo aceitos: <code>1:30:00</code> ou <code>1:30</code>.
       </p>
-      <button class="demo-btn" onclick="loadHorasDemo()">Ver com dados de demonstração (Fev 2026)</button>
+      <button class="demo-btn" id="btn-horas-demo">Ver com dados de demonstração (Fev 2026)</button>
     </div>
 
     <!-- Tab: Google Sheets live connection -->
@@ -1674,7 +342,7 @@ hDz.addEventListener('drop', e=>{
       <div id="h-sheets-status" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#15803d;display:flex;align-items:center;gap:10px;">
         <span style="font-size:16px;">●</span>
         <span id="h-sheets-status-text">Conectado</span>
-        <button onclick="hSheetsDisconnect()" style="margin-left:auto;background:none;border:1px solid #bbf7d0;border-radius:4px;padding:2px 10px;font-size:11px;color:#15803d;cursor:pointer;font-family:inherit;">Desconectar</button>
+        <button id="h-sheets-disconnect-btn" style="margin-left:auto;background:none;border:1px solid #bbf7d0;border-radius:4px;padding:2px 10px;font-size:11px;color:#15803d;cursor:pointer;font-family:inherit;">Desconectar</button>
       </div>
 
       <!-- Method selector -->
@@ -1682,14 +350,14 @@ hDz.addEventListener('drop', e=>{
         <div style="font-size:12px;font-weight:500;color:#444;margin-bottom:10px;">Escolha o método:</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:white;" id="h-method-pub-wrap">
-            <input type="radio" name="h-method" value="publish" checked onchange="hMethodChange(this.value)" style="margin-top:2px;">
+            <input type="radio" name="h-method" value="publish" checked  style="margin-top:2px;">
             <div>
               <div style="font-size:13px;font-weight:500;color:#222;">Publish to Web <span style="background:#f0fdf4;color:#15803d;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600;margin-left:4px;">Recomendado</span></div>
               <div style="font-size:11px;color:#888;margin-top:2px;">~5 minutos de cache. Zero configuração extra no Sheets.</div>
             </div>
           </label>
           <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:white;" id="h-method-apps-wrap">
-            <input type="radio" name="h-method" value="appscript" onchange="hMethodChange(this.value)" style="margin-top:2px;">
+            <input type="radio" name="h-method" value="appscript"  style="margin-top:2px;">
             <div>
               <div style="font-size:13px;font-weight:500;color:#222;">Apps Script Web App <span style="background:#fff7ed;color:#c2410c;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600;margin-left:4px;">Tempo real</span></div>
               <div style="font-size:11px;color:#888;margin-top:2px;">Dados sempre frescos. Requer colar ~15 linhas de código no Sheets.</div>
@@ -1738,7 +406,7 @@ hDz.addEventListener('drop', e=>{
     .setMimeType(ContentService.MimeType.JSON);
   return out;
 }</pre>
-          <button onclick="hCopyScript()" style="margin-top:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:4px 12px;color:#e2e8f0;font-size:11px;cursor:pointer;font-family:inherit;">Copiar código</button>
+          <button id="h-copy-script-btn" style="margin-top:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:4px 12px;color:#e2e8f0;font-size:11px;cursor:pointer;font-family:inherit;">Copiar código</button>
         </div>
       </div>
 
@@ -1746,8 +414,8 @@ hDz.addEventListener('drop', e=>{
       <div style="display:flex;gap:8px;align-items:stretch;">
         <input type="text" id="h-sheets-url" placeholder="Cole a URL aqui..."
           style="flex:1;border:1px solid #ddd;border-radius:6px;padding:10px 12px;font-size:12px;font-family:inherit;outline:none;color:#222;background:white;"
-          onkeydown="if(event.key==='Enter')hSheetsConnect()">
-        <button onclick="hSheetsConnect()"
+          >
+        <button id="h-sheets-connect-btn"
           style="background:var(--purple-g);border:none;border-radius:6px;padding:0 18px;color:white;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;">
           Conectar
         </button>
@@ -1777,10 +445,11 @@ hDz.addEventListener('drop', e=>{
         <div class="report-title" id="h-rpt-period"></div>
       </div>
       <div class="report-actions np">
-        <button class="rpt-btn" onclick="resetHoras()">← Novo upload</button>
-        <button id="h-rpt-refresh-btn" class="rpt-btn" style="display:none;" onclick="hSheetsRefresh()">⟳ Atualizar dados</button>
-        <button class="rpt-btn" onclick="histSave('horas')">☁ Salvar</button>
-        <button class="rpt-btn primary" onclick="window.print()">↓ PDF</button>
+        <button class="rpt-btn" id="btn-horas-reset">← Novo upload</button>
+        <button id="h-rpt-refresh-btn" class="rpt-btn" style="display:none;">⟳ Atualizar dados</button>
+        <button class="rpt-btn" id="btn-horas-save">☁ Salvar</button>
+        <button class="rpt-btn" id="btn-horas-json">⬇ JSON</button>
+        <button class="rpt-btn primary" id="btn-horas-pdf">↓ PDF</button>
       </div>
     </div>
 
@@ -1811,7 +480,36 @@ hDz.addEventListener('drop', e=>{
     </div>
   </div>
 </div>
+<div id="screen-hist" class="screen">
+  <div class="topbar">
+    <button class="back-btn" id="btn-hist-back-hub" data-go="hub">← Voltar</button>
+    <div class="topbar-sep"></div>
+    <span class="topbar-logo">Landscape<span>OS 2</span></span>
+    <span class="topbar-sep"></span>
+    <span class="topbar-title">Histórico de relatórios</span>
+  </div>
 
+  <!-- List view -->
+  <div id="h-hist-list" class="hist-list-wrap">
+    <div class="hist-filter-bar" id="h-hist-filters"></div>
+    <div id="h-hist-entries"></div>
+  </div>
 
+  <!-- Preview view -->
+  <div id="h-hist-preview" style="display:none;">
+    <div class="hist-preview-wrap">
+      <div class="hist-preview-bar np">
+        <button class="ha-btn" id="btn-hist-back-list">← Lista</button>
+        <button class="ha-btn primary" id="btn-hist-print">↓ PDF</button>
+      </div>
+      <div id="h-hist-preview-content"></div>
+    </div>
+  </div>
+</div>
+
+<div id="print-frame"></div>
+<div class="hist-toast" id="hist-toast">✓ Salvo no histórico</div>
+
+<script type="module" src="/src/main.js"></script>
 </body>
 </html>
