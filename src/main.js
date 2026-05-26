@@ -8,6 +8,7 @@ import {
   exportReportJson,
   histRefreshFromCloud,
   histMigrateLocalToCloud,
+  getHistListFilter,
 } from './lib/history.js';
 import { initSuporte, resetSuporteView, loadSuporteDemo } from './lib/suporte.js';
 import {
