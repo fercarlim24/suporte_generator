@@ -28,6 +28,13 @@ npm run build
 
 Os arquivos estáticos ficam em `dist/`.
 
+### Vercel
+
+1. Conecte o repositório GitHub em [vercel.com](https://vercel.com) (se ainda não estiver).
+2. **Não** defina a variável `GITHUB_PAGES` no projeto — o `base` do Vite deve ser `/` (padrão).
+3. Build: `npm run build` · Output: `dist` (já definido em `vercel.json`).
+4. Para atualizar: faça **push em `main`** ou no dashboard **Deployments → ⋯ → Redeploy**.
+
 ### GitHub Pages
 
 Em **Settings → Pages → Build and deployment → Source: GitHub Actions**, cada push em `main` publica o app automaticamente.
