@@ -5,21 +5,33 @@ import {
   REPORT_BADGE,
   REPORT_LABELS,
 } from './config.js';
-import { downloadJson, escapeHtml, showToast } from './utils.js';
+import { downloadJson, escapeHtml, setLoading, showToast } from './utils.js';
+import {
+  checkCloudAvailable,
+  deleteCloudReport,
+  hasCloudClientKey,
+  isCloudAvailable,
+  listCloudReports,
+  saveCloudReport,
+} from './api.js';
 import { buildSuporteMeta, buildSuportePreviewHtml, getCurrentSuporteData } from './suporte.js';
 import { buildHorasMeta, buildHorasPreviewHtml, getHorasFilters, getHorasRows } from './horas.js';
 import { buildOpMeta, buildOpPreviewHtml, getOpPayload } from './op.js';
 
 let histCurrentId = null;
 let histListFilter = 'ALL';
+/** @type {Array<object>|null} */
+let reportsStore = null;
 
-export function histGetAll() {
+function getLocalV2() {
   try {
-    const v2 = JSON.parse(localStorage.getItem(HIST_KEY)) || [];
-    if (v2.length) return v2;
+    return JSON.parse(localStorage.getItem(HIST_KEY)) || [];
   } catch {
-    /* ignore */
+    return [];
   }
+}
+
+function getLocalLegacy() {
   try {
     const legacy = JSON.parse(localStorage.getItem(HIST_KEY_LEGACY)) || [];
     return legacy.map((e) => ({ ...e, legacy: true }));
@@ -28,13 +40,36 @@ export function histGetAll() {
   }
 }
 
-export function histSetAll(arr) {
+function persistLocalV2(entries) {
+  const nonLegacy = entries.filter((e) => !e.legacy && e.version === 2);
   try {
-    localStorage.setItem(HIST_KEY, JSON.stringify(arr));
-    if (arr.length) localStorage.removeItem(HIST_KEY_LEGACY);
+    localStorage.setItem(HIST_KEY, JSON.stringify(nonLegacy.slice(0, HIST_MAX)));
+    if (nonLegacy.length) localStorage.removeItem(HIST_KEY_LEGACY);
   } catch {
-    alert('Armazenamento cheio. Exclua alguns relatórios antigos para liberar espaço.');
+    alert('Armazenamento local cheio. Exclua relatórios antigos.');
   }
+}
+
+function rebuildStore(cloudEntries, localV2, legacy) {
+  const cloudIds = new Set(cloudEntries.map((e) => e.id));
+  const localOnly = localV2.filter((e) => !cloudIds.has(e.id));
+  reportsStore = [...cloudEntries, ...localOnly, ...legacy].slice(0, HIST_MAX + legacy.length);
+}
+
+export function histGetAll() {
+  if (reportsStore) return reportsStore;
+  const localV2 = getLocalV2();
+  const legacy = getLocalLegacy();
+  if (localV2.length) return [...localV2, ...legacy];
+  return legacy;
+}
+
+export function histSetAll(arr) {
+  const legacy = arr.filter((e) => e.legacy);
+  const rest = arr.filter((e) => !e.legacy);
+  reportsStore = arr;
+  persistLocalV2(rest);
+  return { legacy, rest };
 }
 
 function buildPayload(type) {
@@ -67,7 +102,34 @@ export function buildMeta(type) {
   return { title: '', period: '' };
 }
 
-export function histSave(type) {
+export async function histRefreshFromCloud() {
+  const legacy = getLocalLegacy();
+  const localV2 = getLocalV2();
+
+  if (!(await checkCloudAvailable())) {
+    rebuildStore([], localV2, legacy);
+    updateCloudStatusUI();
+    return false;
+  }
+
+  setLoading(true, 'Sincronizando com a nuvem…');
+  try {
+    const cloud = await listCloudReports('ALL');
+    rebuildStore(cloud, localV2, legacy);
+    persistLocalV2(reportsStore.filter((e) => !e.legacy));
+    updateCloudStatusUI();
+    return true;
+  } catch (err) {
+    console.warn('Cloud sync:', err);
+    rebuildStore([], localV2, legacy);
+    updateCloudStatusUI(err.message);
+    return false;
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function histSave(type) {
   const payload = buildPayload(type);
   if (!payload) {
     alert('Gere o relatório primeiro antes de salvar.');
@@ -82,12 +144,63 @@ export function histSave(type) {
     period: meta.period,
     savedAt: new Date().toISOString(),
     payload,
+    cloud: false,
   };
+
   const all = histGetAll().filter((e) => !e.legacy);
   all.unshift(entry);
-  histSetAll(all.slice(0, HIST_MAX));
+  histSetAll([...all.slice(0, HIST_MAX), ...getLocalLegacy()]);
   histUpdateHubCount();
-  showToast('✓ Salvo no histórico');
+
+  if (isCloudAvailable()) {
+    setLoading(true, 'Salvando na nuvem…');
+    try {
+      const saved = await saveCloudReport(entry);
+      entry.cloud = true;
+      entry.id = saved.id;
+      const updated = histGetAll().filter((e) => !e.legacy);
+      const idx = updated.findIndex((e) => e.savedAt === entry.savedAt && e.type === entry.type);
+      if (idx >= 0) updated[idx] = { ...entry, cloud: true, id: saved.id };
+      histSetAll([...updated.slice(0, HIST_MAX), ...getLocalLegacy()]);
+      showToast('✓ Salvo local e na nuvem');
+    } catch (err) {
+      showToast('✓ Salvo local · nuvem: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  } else {
+    showToast('✓ Salvo no histórico (só neste navegador)');
+  }
+}
+
+export async function histMigrateLocalToCloud() {
+  if (!(await checkCloudAvailable())) {
+    alert('Nuvem não configurada. Veja o README (Supabase + variáveis na Vercel).');
+    return;
+  }
+  const local = getLocalV2().filter((e) => e.version === 2 && e.payload);
+  if (!local.length) {
+    alert('Nenhum relatório local para enviar.');
+    return;
+  }
+  if (!confirm(`Enviar ${local.length} relatório(s) local(is) para a nuvem?`)) return;
+
+  setLoading(true, 'Enviando histórico…');
+  let ok = 0;
+  let fail = 0;
+  for (const entry of local) {
+    try {
+      await saveCloudReport(entry);
+      ok += 1;
+    } catch {
+      fail += 1;
+    }
+  }
+  setLoading(false);
+  await histRefreshFromCloud();
+  histRenderList(histListFilter);
+  histUpdateHubCount();
+  showToast(`Migração: ${ok} ok${fail ? `, ${fail} falha(s)` : ''}`);
 }
 
 export function exportReportJson(type) {
@@ -107,11 +220,26 @@ export function exportReportJson(type) {
   });
 }
 
-export function histDelete(id) {
+export async function histDelete(id) {
   if (!confirm('Excluir este relatório do histórico?')) return;
+  const entry = histGetAll().find((e) => e.id === id);
+
+  if (entry?.cloud && isCloudAvailable()) {
+    setLoading(true, 'Excluindo na nuvem…');
+    try {
+      await deleteCloudReport(id);
+    } catch (err) {
+      alert('Erro ao excluir na nuvem: ' + err.message);
+      setLoading(false);
+      return;
+    }
+    setLoading(false);
+  }
+
   histSetAll(histGetAll().filter((e) => e.id !== id));
   histRenderList(histListFilter);
   histUpdateHubCount();
+  showToast('Relatório excluído');
 }
 
 function renderEntryPreview(entry) {
@@ -232,8 +360,9 @@ export function histRenderList(filter) {
       d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const row = document.createElement('div');
     row.className = 'hist-entry';
+    const cloudTag = e.cloud ? ' · ☁' : e.legacy ? ' · legado' : '';
     row.innerHTML = `
-      <span class="hist-badge ${REPORT_BADGE[e.type] || ''}">${REPORT_LABELS[e.type] || e.type}${e.legacy ? ' · legado' : ''}</span>
+      <span class="hist-badge ${REPORT_BADGE[e.type] || ''}">${REPORT_LABELS[e.type] || e.type}${cloudTag}</span>
       <div class="hist-info">
         <div class="hist-title">${escapeHtml(e.title)}</div>
         <div class="hist-meta">${e.period ? escapeHtml(e.period) + ' · ' : ''}${dateStr}</div>
@@ -261,7 +390,44 @@ export function histUpdateHubCount() {
   if (el) el.textContent = n > 0 ? `${n} salvo${n !== 1 ? 's' : ''}` : '';
 }
 
+function updateCloudStatusUI(errorMsg) {
+  const el = document.getElementById('hist-cloud-status');
+  if (!el) return;
+  if (errorMsg) {
+    el.textContent = '☁ Nuvem: ' + errorMsg;
+    el.style.color = '#f87171';
+    return;
+  }
+  if (isCloudAvailable()) {
+    el.textContent = '☁ Nuvem ativa — relatórios compartilhados entre dispositivos';
+    el.style.color = '#4ade80';
+  } else if (hasCloudClientKey()) {
+    el.textContent = '☁ Chave configurada, aguardando servidor (variáveis na Vercel)';
+    el.style.color = 'var(--muted)';
+  } else {
+    el.textContent = '☁ Só neste navegador — configure Supabase na Vercel para nuvem';
+    el.style.color = 'var(--muted)';
+  }
+  const migrateBtn = document.getElementById('btn-hist-migrate');
+  if (migrateBtn) {
+    migrateBtn.style.display = isCloudAvailable() && getLocalV2().length ? 'inline-block' : 'none';
+  }
+}
 
-export function initHistory() {
+export async function initHistory() {
+  reportsStore = null;
+  const legacy = getLocalLegacy();
+  const localV2 = getLocalV2();
+  rebuildStore([], localV2, legacy);
+  await histRefreshFromCloud();
   histUpdateHubCount();
+}
+
+export function getHistListFilter() {
+  return histListFilter;
+}
+
+export async function openHistoryScreen() {
+  await histRefreshFromCloud();
+  histRenderList('ALL');
 }

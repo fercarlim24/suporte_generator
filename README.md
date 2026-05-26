@@ -56,11 +56,11 @@ Para desenvolvimento local use `npm run dev` — o app usa módulos ES (`import`
 npm test
 ```
 
-## Histórico (localStorage)
+## Histórico
 
-- Chave atual: `ls2-history-v2` (payload JSON, versão 2)
-- Relatórios antigos em `ls2-history-v1` (HTML) continuam visíveis como **legado**
-- Exporte backup com o botão **⬇ JSON** em cada módulo
+- **Local:** `ls2-history-v2` (JSON) + legado `ls2-history-v1` (HTML)
+- **Nuvem (opcional):** Supabase + API na Vercel — ver **[docs/BACKEND.md](docs/BACKEND.md)**
+- Exporte backup com **⬇ JSON** em cada módulo
 
 ## Estrutura
 

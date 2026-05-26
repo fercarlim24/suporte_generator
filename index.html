@@ -491,6 +491,13 @@
 
   <!-- List view -->
   <div id="h-hist-list" class="hist-list-wrap">
+    <div class="hist-cloud-bar">
+      <span id="hist-cloud-status" class="hist-cloud-status">☁ Verificando nuvem…</span>
+      <div class="hist-cloud-actions np">
+        <button type="button" class="ha-btn" id="btn-hist-refresh">⟳ Sincronizar</button>
+        <button type="button" class="ha-btn" id="btn-hist-migrate" style="display:none;">↑ Enviar locais para nuvem</button>
+      </div>
+    </div>
     <div class="hist-filter-bar" id="h-hist-filters"></div>
     <div id="h-hist-entries"></div>
   </div>

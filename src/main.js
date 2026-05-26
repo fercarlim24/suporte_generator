@@ -1,4 +1,14 @@
-import { initHistory, histRenderList, histSave, histBackToList, histPrintCurrent, exportReportJson } from './lib/history.js';
+import {
+  initHistory,
+  openHistoryScreen,
+  histRenderList,
+  histSave,
+  histBackToList,
+  histPrintCurrent,
+  exportReportJson,
+  histRefreshFromCloud,
+  histMigrateLocalToCloud,
+} from './lib/history.js';
 import { initSuporte, resetSuporteView, loadSuporteDemo } from './lib/suporte.js';
 import {
   initHoras,
@@ -32,7 +42,7 @@ export function goTo(id) {
     el.classList.add('active');
     window.scrollTo(0, 0);
   }
-  if (id === 'hist') histRenderList('ALL');
+  if (id === 'hist') openHistoryScreen();
 }
 
 function bindHub() {
@@ -86,6 +96,11 @@ function bindHistActions() {
   document.getElementById('btn-hist-back-hub')?.addEventListener('click', () => goTo('hub'));
   document.getElementById('btn-hist-back-list')?.addEventListener('click', histBackToList);
   document.getElementById('btn-hist-print')?.addEventListener('click', histPrintCurrent);
+  document.getElementById('btn-hist-refresh')?.addEventListener('click', async () => {
+    await histRefreshFromCloud();
+    histRenderList(getHistListFilter());
+  });
+  document.getElementById('btn-hist-migrate')?.addEventListener('click', histMigrateLocalToCloud);
 }
 
 function boot() {
