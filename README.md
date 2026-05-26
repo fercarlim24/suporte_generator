@@ -26,9 +26,22 @@ Abra a URL exibida pelo Vite (geralmente `http://localhost:5173`).
 npm run build
 ```
 
-Os arquivos estáticos ficam em `dist/`. Publique essa pasta (GitHub Pages, Netlify, etc.).
+Os arquivos estáticos ficam em `dist/`.
 
-Para abrir sem build, use `npm run dev` — o app depende de módulos ES (`import`).
+### GitHub Pages
+
+Em **Settings → Pages → Build and deployment → Source: GitHub Actions**, cada push em `main` publica o app automaticamente.
+
+URL: https://fercarlim24.github.io/suporte_generator/
+
+### Outros hosts
+
+```bash
+npm run build              # site na raiz do domínio
+GITHUB_PAGES=true npm run build   # subpasta /suporte_generator/
+```
+
+Para desenvolvimento local use `npm run dev` — o app usa módulos ES (`import`).
 
 ## Testes
 
