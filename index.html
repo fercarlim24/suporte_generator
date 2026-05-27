@@ -372,7 +372,7 @@
             <input type="radio" name="h-method" value="appscript"  style="margin-top:2px;">
             <div>
               <div style="font-size:13px;font-weight:500;color:#222;">Apps Script Web App <span style="background:#fff7ed;color:#c2410c;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600;margin-left:4px;">Tempo real</span></div>
-              <div style="font-size:11px;color:#888;margin-top:2px;">Dados sempre frescos. Requer colar ~15 linhas de código no Sheets.</div>
+              <div style="font-size:11px;color:#888;margin-top:2px;">Várias abas (um mês cada) com uma URL — troque de mês no relatório.</div>
             </div>
           </label>
         </div>
@@ -381,12 +381,13 @@
       <!-- Instructions: Publish to Web -->
       <div id="h-instr-publish">
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:14px;font-size:12px;line-height:1.8;color:#555;">
-          <strong style="color:#222;">Como gerar a URL:</strong><br>
+          <strong style="color:#222;">Como gerar a URL (uma aba por vez):</strong><br>
           1. Abra sua planilha no Google Sheets<br>
           2. <strong>File → Share → Publish to web</strong><br>
           3. Em "Link", selecione a aba da planilha (ex: Fevereiro)<br>
           4. Mude o formato para <strong>Comma-separated values (.csv)</strong><br>
-          5. Clique em <strong>Publish</strong> e copie a URL gerada
+          5. Clique em <strong>Publish</strong> e copie a URL gerada<br>
+          <span style="color:#c2410c;">Planilha com várias abas mensais?</span> Use <strong>Apps Script</strong> abaixo — conecta uma vez e alterna o mês no relatório.
         </div>
       </div>
 
@@ -401,22 +402,46 @@
           5. Clique em <strong>Deploy</strong>, autorize e copie a URL
         </div>
         <div style="background:#0c0f1a;border-radius:8px;padding:14px;margin-bottom:14px;overflow-x:auto;">
-          <pre id="h-apps-code" style="font-family:monospace;font-size:11px;color:#e2e8f0;line-height:1.6;margin:0;white-space:pre;">function doGet() {
+          <pre id="h-apps-code" style="font-family:monospace;font-size:11px;color:#e2e8f0;line-height:1.6;margin:0;white-space:pre;">function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getActiveSheet();
+  const params = (e &amp;&amp; e.parameter) || {};
+
+  if (params.action === 'list') {
+    const sheets = ss.getSheets().map(function (s) {
+      return { name: s.getName(), gid: String(s.getSheetId()) };
+    });
+    return jsonOut({ sheets: sheets });
+  }
+
+  var sh = null;
+  if (params.sheet) {
+    sh = ss.getSheetByName(params.sheet);
+    if (!sh) {
+      var gid = String(params.sheet);
+      var all = ss.getSheets();
+      for (var i = 0; i &lt; all.length; i++) {
+        if (String(all[i].getSheetId()) === gid) { sh = all[i]; break; }
+      }
+    }
+  }
+  if (!sh) sh = ss.getActiveSheet();
+
   const data = sh.getDataRange().getValues();
-  const headers = data[0].map(h => String(h).trim());
+  if (!data.length) return jsonOut([]);
+  const headers = data[0].map(function (h) { return String(h).trim(); });
   const rows = data.slice(1)
-    .filter(r => r.some(c => c !== ''))
-    .map(r => {
+    .filter(function (r) { return r.some(function (c) { return c !== ''; }); })
+    .map(function (r) {
       const obj = {};
-      headers.forEach((h, i) => obj[h] = r[i]);
+      headers.forEach(function (h, i) { obj[h] = r[i]; });
       return obj;
     });
-  const out = ContentService
-    .createTextOutput(JSON.stringify(rows))
+  return jsonOut(rows);
+}
+
+function jsonOut(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
-  return out;
 }</pre>
           <button id="h-copy-script-btn" style="margin-top:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:4px 12px;color:#e2e8f0;font-size:11px;cursor:pointer;font-family:inherit;">Copiar código</button>
         </div>
@@ -424,7 +449,7 @@
 
       <!-- URL input -->
       <div style="display:flex;gap:8px;align-items:stretch;">
-        <input type="text" id="h-sheets-url" placeholder="Cole a URL aqui..."
+        <input type="text" id="h-sheets-url" placeholder="URL do Web App (Apps Script) ou CSV publicado…"
           style="flex:1;border:1px solid #ddd;border-radius:6px;padding:10px 12px;font-size:12px;font-family:inherit;outline:none;color:#222;background:white;"
           >
         <button id="h-sheets-connect-btn"
@@ -433,6 +458,11 @@
         </button>
       </div>
       <div id="h-sheets-error" style="display:none;font-size:11px;color:#dc2626;margin-top:8px;"></div>
+
+      <div id="h-sheet-nav-setup" class="h-sheet-nav-setup" style="display:none;">
+        <div class="h-sheet-nav-label">Aba / mês da planilha</div>
+        <select id="h-sheet-select-setup" class="h-sheet-select" aria-label="Selecionar aba da planilha"></select>
+      </div>
 
       <!-- Auto-refresh -->
       <div style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:11px;color:#888;">
@@ -455,6 +485,11 @@
       <div>
         <div class="report-logo">LandscapeOS 2 — Horas Dev</div>
         <div class="report-title" id="h-rpt-period"></div>
+        <div id="h-sheet-nav" class="h-sheet-nav" style="display:none;">
+          <span class="h-sheet-nav-label">Mês</span>
+          <div id="h-sheet-pills" class="h-sheet-pills"></div>
+          <select id="h-sheet-select" class="h-sheet-select" aria-label="Selecionar mês da planilha"></select>
+        </div>
       </div>
       <div class="report-actions np">
         <button class="rpt-btn" id="btn-horas-reset">← Novo upload</button>

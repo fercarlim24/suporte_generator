@@ -322,6 +322,66 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
 .task-desc { color:#333; flex:1; line-height:1.5; }
 .no-tasks { text-align:center; padding:24px; color:#aaa; font-size:13px; }
 
+/* Google Sheets — troca de aba / mês */
+.h-sheet-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.h-sheet-nav-setup {
+  margin-top: 14px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+.h-sheet-nav-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #888;
+}
+.h-sheet-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 420px;
+}
+.h-sheet-pill {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 16px;
+  padding: 4px 11px;
+  font-size: 11px;
+  color: #555;
+  cursor: pointer;
+  font-family: inherit;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.h-sheet-pill:hover { border-color: #c4b5fd; color: #5b21b6; }
+.h-sheet-pill.active {
+  background: #5b21b6;
+  border-color: #5b21b6;
+  color: white;
+}
+.h-sheet-pill.summary { font-style: italic; opacity: 0.85; }
+.h-sheet-select {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #333;
+  background: white;
+  min-width: 140px;
+}
+
 /* ════════════════════════════════════════════
    SCREEN ANALYTICS — SUPPORT EVOLUTION
 ════════════════════════════════════════════ */
