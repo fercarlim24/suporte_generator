@@ -4,6 +4,7 @@ import {
   getCardName,
   getTagsRaw,
   normalizeCsvData,
+  pickRowField,
   parseSuporteCsvFile,
 } from './utils.js';
 
@@ -13,6 +14,71 @@ export function parseTags(raw) {
     .split(/[,;\n\r]+/)
     .map((t) => t.trim().toUpperCase())
     .filter(Boolean);
+}
+
+function extractEmails(raw) {
+  if (!raw) return [];
+  const m = String(raw).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi);
+  return (m || []).map((e) => e.toLowerCase());
+}
+
+function isInternalSupportEmail(email) {
+  return (
+    email.endsWith('@landscape.to') ||
+    email.endsWith('@fore.today') ||
+    email.includes('no-reply')
+  );
+}
+
+function getContactEmails(row) {
+  const raw = [
+    pickRowField(row, 'PARTICIPANTS'),
+    pickRowField(row, 'CUSTOM'),
+    pickRowField(row, 'CUSTOMER'),
+    pickRowField(row, 'EMAIL'),
+  ]
+    .filter(Boolean)
+    .join(', ');
+  return extractEmails(raw).filter((e) => !isInternalSupportEmail(e));
+}
+
+function detectEnvironment(name, tags) {
+  const txt = `${name} ${tags.join(' ')}`.toUpperCase();
+  if (txt.includes('FORE')) return 'FORE';
+  if (txt.includes('OS2') || txt.includes('LANDSCAPEOS2') || txt.includes('LS2')) return 'OS2';
+  return 'GERAL';
+}
+
+function detectProblemType(name, tags) {
+  const txt = `${name} ${tags.join(' ')}`.toUpperCase();
+  if (txt.includes('BUG') || txt.includes('ERRO') || txt.includes('FALHA')) return 'Bug/Erro';
+  if (
+    txt.includes('ACESSO') ||
+    txt.includes('LOGIN') ||
+    txt.includes('SENHA') ||
+    txt.includes('PERMISS')
+  ) {
+    return 'Acesso e permissões';
+  }
+  if (
+    txt.includes('PAGAMENTO') ||
+    txt.includes('PIX') ||
+    txt.includes('NF') ||
+    txt.includes('FISCAL') ||
+    txt.includes('IMPOSTO') ||
+    txt.includes('BOLETO') ||
+    txt.includes('FORE')
+  ) {
+    return 'Financeiro/FORE';
+  }
+  if (txt.includes('INTEGRA') || txt.includes('API') || txt.includes('WEBHOOK')) {
+    return 'Integrações';
+  }
+  if (txt.includes('RELATÓRIO') || txt.includes('EXPORT')) return 'Relatórios';
+  if (txt.includes('DÚVIDA') || txt.includes('DUVIDA') || txt.includes('COMO')) {
+    return 'Dúvidas operacionais';
+  }
+  return 'Outros';
 }
 
 export function processSuporteRows(data) {
@@ -39,6 +105,9 @@ export function processSuporteRows(data) {
   const inProgress = realTickets.filter((e) => e.tags.includes('EM ANDAMENTO'));
 
   const catMap = {};
+  const envTypeMap = {};
+  const categoryTypeMap = {};
+  const uniqueContactEmails = new Set();
   realTickets.forEach(({ tags }) => {
     const cats = tags.filter((t) => !NOISE.has(t));
     if (!cats.length) {
@@ -49,7 +118,51 @@ export function processSuporteRows(data) {
       });
     }
   });
+  realTickets.forEach(({ row, name, tags }) => {
+    getContactEmails(row).forEach((email) => uniqueContactEmails.add(email));
+
+    const env = detectEnvironment(name, tags);
+    const ptype = detectProblemType(name, tags);
+    envTypeMap[env] = envTypeMap[env] || {};
+    envTypeMap[env][ptype] = (envTypeMap[env][ptype] || 0) + 1;
+
+    const cats = tags.filter((t) => !NOISE.has(t));
+    const targetCats = cats.length ? cats : ['SEM CATEGORIA'];
+    targetCats.forEach((cat) => {
+      categoryTypeMap[cat] = categoryTypeMap[cat] || {};
+      categoryTypeMap[cat][ptype] = (categoryTypeMap[cat][ptype] || 0) + 1;
+    });
+  });
+
   const cats = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const envTypeMatrix = Object.entries(envTypeMap)
+    .map(([env, types]) => {
+      const totalEnv = Object.values(types).reduce((a, v) => a + v, 0);
+      const sortedTypes = Object.entries(types)
+        .sort((a, b) => b[1] - a[1])
+        .map(([type, count]) => ({
+          type,
+          count,
+          pct: totalEnv ? Math.round((count / totalEnv) * 100) : 0,
+        }));
+      return { env, total: totalEnv, types: sortedTypes };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  const categoryInsights = Object.entries(categoryTypeMap)
+    .map(([category, types]) => {
+      const totalCat = Object.values(types).reduce((a, v) => a + v, 0);
+      const [topType, topCount] = Object.entries(types).sort((a, b) => b[1] - a[1])[0];
+      return {
+        category,
+        total: totalCat,
+        topType,
+        topCount,
+        topPct: totalCat ? Math.round((topCount / totalCat) * 100) : 0,
+      };
+    })
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8);
 
   return {
     total,
@@ -62,6 +175,9 @@ export function processSuporteRows(data) {
     awaiting: awaiting.length,
     inProgress: inProgress.length,
     cats,
+    uniqueContacts: uniqueContactEmails.size,
+    envTypeMatrix,
+    categoryInsights,
     generatedAt: new Date().toISOString(),
   };
 }
@@ -131,10 +247,41 @@ export function renderSuporteReport(d, meta = buildSuporteMeta()) {
     : `<p style="font-size:12px;color:#aaa;">Nenhum bug reportado no período.</p>`;
   document.getElementById('rptBugs').innerHTML = `<div class="rpt-card-title"><span class="dot dot-red"></span>Bugs (${d.bugs.length})</div>${bugList}`;
 
+  const envRows =
+    d.envTypeMatrix?.length
+      ? d.envTypeMatrix
+          .map((env) => {
+            const top = env.types.slice(0, 3).map((t) => `${escapeHtml(t.type)} (${t.count})`).join(' · ');
+            return `<tr><td>${escapeHtml(env.env)}</td><td>${env.total}</td><td>${top}</td></tr>`;
+          })
+          .join('')
+      : '<tr><td colspan="3">Sem dados</td></tr>';
+
+  const catInsights =
+    d.categoryInsights?.length
+      ? d.categoryInsights
+          .slice(0, 6)
+          .map(
+            (c) =>
+              `<li><strong>${escapeHtml(c.category)}</strong>: ${escapeHtml(c.topType)} (${c.topCount}/${c.total} · ${c.topPct}%)</li>`,
+          )
+          .join('')
+      : '<li>Sem dados suficientes para análise por categoria.</li>';
+
   document.getElementById('rptObs').innerHTML = `
     <div class="rpt-card-title"><span class="dot dot-purple"></span>Observações</div>
     <div class="obs-item"><span class="obs-tag pill-orange" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">Atenção</span><span class="obs-text">Revise os tickets de <strong>Action required</strong> em aberto.</span></div>
     <div class="obs-item"><span class="obs-tag pill-green" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">Positivo</span><span class="obs-text">Taxa de resolução de <strong>${closedPct}%</strong> no período.</span></div>
+    <div class="obs-item"><span class="obs-tag pill-gray">Contato</span><span class="obs-text"><strong>${d.uniqueContacts || 0}</strong> usuários únicos entraram em contato no período.</span></div>
+    <div class="insights-block">
+      <div class="insights-title">Ambiente × tipo de problema</div>
+      <table class="insights-table">
+        <thead><tr><th>Ambiente</th><th>Tickets</th><th>Principais tipos</th></tr></thead>
+        <tbody>${envRows}</tbody>
+      </table>
+      <div class="insights-title" style="margin-top:10px;">Tipo dominante por categoria</div>
+      <ul class="insights-list">${catInsights}</ul>
+    </div>
   `;
 }
 
