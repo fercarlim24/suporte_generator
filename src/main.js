@@ -11,11 +11,10 @@ import {
   getHistListFilter,
 } from './lib/history.js';
 import { initAnalytics, openAnalyticsScreen } from './lib/analytics.js';
-import { initSuporte, resetSuporteView, loadSuporteDemo } from './lib/suporte.js';
+import { initSuporte, resetSuporteView } from './lib/suporte.js';
 import {
   initHoras,
   resetHorasView,
-  loadHorasDemo,
   hSwitchTab,
   hMethodChange,
   hCopyScript,
@@ -57,7 +56,6 @@ function bindHub() {
 
 function bindSuporteActions() {
   document.getElementById('btn-suporte-reset')?.addEventListener('click', resetSuporteView);
-  document.getElementById('btn-suporte-demo')?.addEventListener('click', loadSuporteDemo);
   document.getElementById('btn-suporte-save')?.addEventListener('click', () => histSave('suporte'));
   document.getElementById('btn-suporte-json')?.addEventListener('click', () => exportReportJson('suporte'));
   document.getElementById('btn-suporte-pdf')?.addEventListener('click', () => window.print());
@@ -65,7 +63,6 @@ function bindSuporteActions() {
 
 function bindHorasActions() {
   document.getElementById('btn-horas-reset')?.addEventListener('click', resetHorasView);
-  document.getElementById('btn-horas-demo')?.addEventListener('click', loadHorasDemo);
   document.getElementById('btn-horas-save')?.addEventListener('click', () => histSave('horas'));
   document.getElementById('btn-horas-json')?.addEventListener('click', () => exportReportJson('horas'));
   document.getElementById('btn-horas-pdf')?.addEventListener('click', () => window.print());
