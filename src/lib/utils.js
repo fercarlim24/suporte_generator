@@ -1,3 +1,5 @@
+import { parseDragDailyCardsMatrix } from './drag-csv.js';
+
 /** Escape text for safe HTML interpolation */
 export function escapeHtml(str) {
   if (str == null) return '';
@@ -120,6 +122,30 @@ export function parseCsvFile(file, onComplete) {
     complete: (r) => {
       setLoading(false);
       onComplete(normalizeCsvData(r.data));
+    },
+    error: () => {
+      setLoading(false);
+      alert('Erro ao ler o arquivo CSV.');
+    },
+  });
+}
+
+/**
+ * CSV de suporte — export Drag Daily Cards (metadados + cabeçalho na ~linha 6).
+ */
+export function parseSuporteCsvFile(file, onComplete) {
+  if (typeof Papa === 'undefined') {
+    alert('Biblioteca CSV não carregada.');
+    return;
+  }
+  setLoading(true, 'Lendo CSV do Drag…');
+  Papa.parse(file, {
+    header: false,
+    skipEmptyLines: 'greedy',
+    complete: (r) => {
+      setLoading(false);
+      const { rows, meta } = parseDragDailyCardsMatrix(r.data || []);
+      onComplete(rows, meta);
     },
     error: () => {
       setLoading(false);

@@ -4,13 +4,13 @@ import {
   getCardName,
   getTagsRaw,
   normalizeCsvData,
-  parseCsvFile,
+  parseSuporteCsvFile,
 } from './utils.js';
 
 export function parseTags(raw) {
   if (!raw) return [];
   return String(raw)
-    .split(/[,;]+/)
+    .split(/[,;\n\r]+/)
     .map((t) => t.trim().toUpperCase())
     .filter(Boolean);
 }
@@ -66,11 +66,13 @@ export function processSuporteRows(data) {
   };
 }
 
-export function buildSuporteMeta() {
+export function buildSuporteMeta(dragMeta = {}) {
   const now = new Date();
   return {
-    title: 'Relatório de Suporte',
-    period: now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+    title: dragMeta.board ? `Relatório de Suporte — ${dragMeta.board}` : 'Relatório de Suporte',
+    period:
+      dragMeta.period ||
+      now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
     footerDate: now.toLocaleDateString('pt-BR'),
   };
 }
@@ -184,24 +186,25 @@ export function getCurrentSuporteData() {
   return currentSuporteData;
 }
 
-export function processAndRenderSuporte(data) {
+export function processAndRenderSuporte(data, dragMeta = {}) {
   if (!data?.length) {
     alert('O CSV está vazio ou não foi lido. Confira o export Daily Cards do Drag.app.');
     return null;
   }
   currentSuporteData = processSuporteRows(data);
   if (currentSuporteData.total === 0) {
-    const keys = Object.keys(normalizeCsvData([data[0]])[0] || {}).join(', ') || '(nenhuma)';
+    const keys = Object.keys(data[0] || {}).join(', ') || '(nenhuma)';
     alert(
       'Nenhum card encontrado no CSV.\n\n' +
         'Colunas detectadas: ' +
         keys +
-        '\n\nEsperado: CARD NAME (ou Card Name) e TAGS.\n' +
+        '\n\nEsperado: CARD NAME e TAGS na linha de cabeçalho do export Daily Cards.\n' +
         'Exporte de novo: Drag → três pontos → Export → Daily Cards CSV.',
     );
     return null;
   }
-  renderSuporteReport(currentSuporteData);
+  currentSuporteData.dragMeta = dragMeta;
+  renderSuporteReport(currentSuporteData, buildSuporteMeta(dragMeta));
   return currentSuporteData;
 }
 
@@ -247,7 +250,7 @@ export function initSuporte() {
   input.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    parseCsvFile(file, processAndRenderSuporte);
+    parseSuporteCsvFile(file, (rows, meta) => processAndRenderSuporte(rows, meta || {}));
   });
 
   dz.addEventListener('dragover', (e) => {
@@ -260,6 +263,6 @@ export function initSuporte() {
     dz.classList.remove('drag-over');
     const file = e.dataTransfer.files[0];
     if (!file) return;
-    parseCsvFile(file, processAndRenderSuporte);
+    parseSuporteCsvFile(file, (rows, meta) => processAndRenderSuporte(rows, meta || {}));
   });
 }
