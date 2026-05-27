@@ -1,4 +1,4 @@
-import { CAT_COLORS, CAT_ORDER, SHEETS_KEY } from './config.js';
+import { CAT_COLORS, CAT_ORDER, HORAS_SHEETS_DEFAULT, SHEETS_KEY } from './config.js';
 import {
   buildAppsScriptRequestUrl,
   buildSpreadsheetCsvExportUrl,
@@ -297,6 +297,19 @@ function hGetSheetsCfg() {
 
 function hSetSheetsCfg(cfg) {
   localStorage.setItem(SHEETS_KEY, JSON.stringify(cfg));
+}
+
+function hGetDefaultSheetsCfg() {
+  if (!HORAS_SHEETS_DEFAULT.url) return null;
+  return {
+    url: HORAS_SHEETS_DEFAULT.url,
+    method: HORAS_SHEETS_DEFAULT.method || 'appscript',
+    activeSheet: HORAS_SHEETS_DEFAULT.activeSheet || '',
+    autoRefresh: true,
+    interval: 5,
+    sheets: [],
+    lastFetched: '',
+  };
 }
 
 async function hFetchAppsScriptJson(deploymentUrl, params = {}) {
@@ -655,7 +668,14 @@ export function initHoras() {
     });
   }
 
-  const cfg = hGetSheetsCfg();
+  let cfg = hGetSheetsCfg();
+  if (!cfg) {
+    const defaultCfg = hGetDefaultSheetsCfg();
+    if (defaultCfg) {
+      cfg = defaultCfg;
+      hSetSheetsCfg(defaultCfg);
+    }
+  }
   if (cfg?.url && cfg.method === 'appscript' && !cfg.sheets?.length) {
     hFetchSheetList(cfg.url, cfg.method)
       .then((sheets) => {
@@ -668,6 +688,8 @@ export function initHoras() {
       .catch(() => {});
   }
   if (cfg) {
+    const urlInput = document.getElementById('h-sheets-url');
+    if (urlInput && !urlInput.value) urlInput.value = cfg.url;
     hFetchSheetRows(cfg.url, cfg.method, cfg.activeSheet)
       .then((rows) => {
         if (rows?.length) {
