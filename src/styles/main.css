@@ -323,6 +323,28 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
 .no-tasks { text-align:center; padding:24px; color:#aaa; font-size:13px; }
 
 /* ════════════════════════════════════════════
+   SCREEN ANALYTICS — SUPPORT EVOLUTION
+════════════════════════════════════════════ */
+#screen-analytics { background: #f7f8fa; }
+#screen-analytics .topbar { background: var(--bg-menu); }
+.analytics-wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 60px; }
+.analytics-header { margin-bottom: 16px; }
+.analytics-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.bar-chart { display: flex; gap: 8px; align-items: end; height: 190px; padding-top: 10px; }
+.bar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.bar-label { font-size: 10px; color: #888; white-space: nowrap; }
+.bar-val { font-size: 10px; color: #666; font-variant-numeric: tabular-nums; }
+.bar { width: 100%; max-width: 42px; min-height: 2px; border-radius: 6px 6px 0 0; background: linear-gradient(180deg,#8b5cf6,#5b21b6); }
+.bar.green { background: linear-gradient(180deg,#4ade80,#15803d); }
+.bar.red { background: linear-gradient(180deg,#f87171,#991b1b); }
+.bar.orange { background: linear-gradient(180deg,#fb923c,#c2410c); }
+.analytics-empty { color: #888; font-size: 12px; padding: 18px 0; }
+.analytics-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.analytics-table th, .analytics-table td { border-bottom: 1px solid #f1f3f7; padding: 8px 6px; text-align: left; color: #444; }
+.analytics-table th { font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: #888; }
+
+/* ════════════════════════════════════════════
    HISTORY SCREEN
 ════════════════════════════════════════════ */
 #screen-hist { background: var(--bg-dark); }

@@ -427,6 +427,12 @@ export function getHistListFilter() {
   return histListFilter;
 }
 
+export function getSupportReportEntries() {
+  return histGetAll().filter(
+    (e) => e.type === 'suporte' && e.version === 2 && e.payload?.data && !e.legacy,
+  );
+}
+
 export async function openHistoryScreen() {
   await histRefreshFromCloud();
   histRenderList('ALL');

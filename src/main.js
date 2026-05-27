@@ -10,6 +10,7 @@ import {
   histMigrateLocalToCloud,
   getHistListFilter,
 } from './lib/history.js';
+import { initAnalytics, openAnalyticsScreen } from './lib/analytics.js';
 import { initSuporte, resetSuporteView, loadSuporteDemo } from './lib/suporte.js';
 import {
   initHoras,
@@ -34,6 +35,7 @@ const SCREEN_MAP = {
   op: 'screen-op',
   horas: 'screen-horas',
   hist: 'screen-hist',
+  analytics: 'screen-analytics',
 };
 
 export function goTo(id) {
@@ -44,6 +46,7 @@ export function goTo(id) {
     window.scrollTo(0, 0);
   }
   if (id === 'hist') openHistoryScreen();
+  if (id === 'analytics') openAnalyticsScreen();
 }
 
 function bindHub() {
@@ -114,6 +117,7 @@ function boot() {
   initHoras();
   initOp();
   initHistory();
+  initAnalytics();
 
   const opData = document.getElementById('op-data');
   if (opData && !opData.value) {

@@ -97,6 +97,20 @@
       </div>
     </div>
 
+    <div class="hub-card" data-go="analytics">
+      <div class="hub-card-hdr blue">Analytics</div>
+      <div class="hub-card-body">
+        <div class="hub-card-name">Relatórios dos relatórios</div>
+        <div class="hub-card-desc">Acompanhe evolução mensal do suporte com volume de chamados, taxa de resolução, bugs e usuários únicos.</div>
+        <div class="hub-card-tags">
+          <span class="tag">Volume mensal</span>
+          <span class="tag">Resolução</span>
+          <span class="tag">Bugs</span>
+          <span class="tag">Usuários únicos</span>
+        </div>
+      </div>
+    </div>
+
   </div>
   <div class="hub-footer">LANDSCAPEOS 2 — USE INTERNO</div>
 </div>
@@ -477,6 +491,54 @@
     <div class="report-footer">
       <span>LandscapeOS 2 — Horas de Desenvolvimento</span>
       <span id="h-rpt-footer-right"></span>
+    </div>
+  </div>
+</div>
+<div id="screen-analytics" class="screen">
+  <div class="topbar">
+    <button class="back-btn" data-go="hub">← Voltar</button>
+    <div class="topbar-sep"></div>
+    <span class="topbar-logo">Landscape<span>OS 2</span></span>
+    <span class="topbar-sep"></span>
+    <span class="topbar-title">Analytics de Suporte</span>
+    <div style="margin-left:auto;display:flex;gap:8px;" class="np">
+      <button class="btn-ghost" id="btn-analytics-refresh">⟳ Atualizar</button>
+    </div>
+  </div>
+
+  <div class="analytics-wrap">
+    <div class="analytics-header">
+      <div>
+        <div class="report-logo">LandscapeOS 2 — Analytics</div>
+        <div class="report-title" style="font-size:28px;">Evolução do suporte</div>
+        <div class="report-period" id="analytics-period">Com base nos relatórios salvos</div>
+      </div>
+    </div>
+
+    <div id="analytics-kpis" class="analytics-kpis"></div>
+
+    <div class="analytics-grid">
+      <div class="rpt-card">
+        <div class="rpt-card-title"><span class="dot dot-purple"></span>Volume de chamados por mês</div>
+        <div id="analytics-chart-volume"></div>
+      </div>
+      <div class="rpt-card">
+        <div class="rpt-card-title"><span class="dot dot-green"></span>Taxa de resolução por mês</div>
+        <div id="analytics-chart-resolution"></div>
+      </div>
+      <div class="rpt-card">
+        <div class="rpt-card-title"><span class="dot dot-red"></span>Bugs por mês</div>
+        <div id="analytics-chart-bugs"></div>
+      </div>
+      <div class="rpt-card">
+        <div class="rpt-card-title"><span class="dot dot-orange"></span>Usuários únicos por mês</div>
+        <div id="analytics-chart-contacts"></div>
+      </div>
+    </div>
+
+    <div class="rpt-card" style="margin-top:14px;">
+      <div class="rpt-card-title"><span class="dot dot-purple"></span>Resumo mensal</div>
+      <div id="analytics-table-wrap"></div>
     </div>
   </div>
 </div>
