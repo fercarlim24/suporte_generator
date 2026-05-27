@@ -5,7 +5,13 @@ import {
   REPORT_BADGE,
   REPORT_LABELS,
 } from './config.js';
-import { downloadJson, escapeHtml, setLoading, showToast } from './utils.js';
+import {
+  downloadJson,
+  escapeHtml,
+  formatHistEntryTitle,
+  setLoading,
+  showToast,
+} from './utils.js';
 import {
   checkCloudAvailable,
   deleteCloudReport,
@@ -364,7 +370,7 @@ export function histRenderList(filter) {
     row.innerHTML = `
       <span class="hist-badge ${REPORT_BADGE[e.type] || ''}">${REPORT_LABELS[e.type] || e.type}${cloudTag}</span>
       <div class="hist-info">
-        <div class="hist-title">${escapeHtml(e.title)}</div>
+        <div class="hist-title">${escapeHtml(formatHistEntryTitle(e, REPORT_LABELS))}</div>
         <div class="hist-meta">${e.period ? escapeHtml(e.period) + ' · ' : ''}${dateStr}</div>
       </div>
       <div class="hist-actions"></div>`;
