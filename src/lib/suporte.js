@@ -81,6 +81,45 @@ function detectProblemType(name, tags) {
   return 'Outros';
 }
 
+function buildSuggestedAdjustments(data) {
+  const suggestions = [];
+
+  if (data.actionRequired > 0) {
+    suggestions.push(
+      `Criar regra de triagem para tickets "Action required" (atualmente ${data.actionRequired}) com SLA e responsável por categoria.`,
+    );
+  }
+
+  if (data.bugs.length > 0) {
+    suggestions.push(
+      `Priorizar correção de bugs recorrentes (${data.bugs.length} no período) e acompanhar taxa de reincidência após deploy.`,
+    );
+  }
+
+  const topEnv = data.envTypeMatrix?.[0];
+  if (topEnv?.types?.length) {
+    const topType = topEnv.types[0];
+    suggestions.push(
+      `No ambiente ${topEnv.env}, o principal tipo é "${topType.type}" (${topType.count} chamados). Avaliar ajuste estrutural para reduzir volume.`,
+    );
+  }
+
+  const topCategory = data.categoryInsights?.[0];
+  if (topCategory) {
+    suggestions.push(
+      `Na categoria "${topCategory.category}", o tipo dominante é "${topCategory.topType}" (${topCategory.topPct}%). Criar playbook específico para esse fluxo.`,
+    );
+  }
+
+  if (data.uniqueContacts > 0) {
+    suggestions.push(
+      `Monitorar jornada dos ${data.uniqueContacts} usuários únicos com maior volume de contato e identificar pontos de fricção no produto.`,
+    );
+  }
+
+  return suggestions.slice(0, 5);
+}
+
 export function processSuporteRows(data) {
   const rows = normalizeCsvData(data).filter((r) => getCardName(r));
   const total = rows.length;
@@ -164,7 +203,7 @@ export function processSuporteRows(data) {
     .sort((a, b) => b.total - a.total)
     .slice(0, 8);
 
-  return {
+  const result = {
     total,
     foreEmails: foreEmails.length,
     foreTickets: foreTickets.length,
@@ -180,6 +219,10 @@ export function processSuporteRows(data) {
     categoryInsights,
     generatedAt: new Date().toISOString(),
   };
+
+  result.suggestedAdjustments = buildSuggestedAdjustments(result);
+
+  return result;
 }
 
 export function buildSuporteMeta(dragMeta = {}) {
@@ -268,6 +311,11 @@ export function renderSuporteReport(d, meta = buildSuporteMeta()) {
           .join('')
       : '<li>Sem dados suficientes para análise por categoria.</li>';
 
+  const defaultInsightsText = (d.suggestedAdjustments || [])
+    .map((s, i) => `${i + 1}. ${s}`)
+    .join('\n');
+  const customInsightsText = d.customInsights || defaultInsightsText;
+
   document.getElementById('rptObs').innerHTML = `
     <div class="rpt-card-title"><span class="dot dot-purple"></span>Observações</div>
     <div class="obs-item"><span class="obs-tag pill-orange" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">Atenção</span><span class="obs-text">Revise os tickets de <strong>Action required</strong> em aberto.</span></div>
@@ -281,8 +329,17 @@ export function renderSuporteReport(d, meta = buildSuporteMeta()) {
       </table>
       <div class="insights-title" style="margin-top:10px;">Tipo dominante por categoria</div>
       <ul class="insights-list">${catInsights}</ul>
+      <div class="insights-title" style="margin-top:12px;">Sugestões de ajustes do sistema (editável)</div>
+      <textarea id="rptInsightsInput" class="insights-input" rows="6" placeholder="Adicione recomendações para o time de produto/suporte...">${escapeHtml(customInsightsText)}</textarea>
     </div>
   `;
+
+  const insightsInput = document.getElementById('rptInsightsInput');
+  if (insightsInput) {
+    insightsInput.addEventListener('input', () => {
+      if (currentSuporteData) currentSuporteData.customInsights = insightsInput.value;
+    });
+  }
 }
 
 export function buildSuportePreviewHtml(d, meta) {
@@ -296,6 +353,11 @@ export function buildSuportePreviewHtml(d, meta) {
   const bugList = d.bugs.length
     ? `<ul class="bug-list">${d.bugs.map((b) => `<li class="bug-item"><span class="bug-dot"></span><span>${escapeHtml(b.name)}</span></li>`).join('')}</ul>`
     : `<p style="font-size:12px;color:#aaa;">Nenhum bug reportado no período.</p>`;
+  const suggestions = d.customInsights
+    ? `<div style="white-space:pre-wrap;font-size:11px;line-height:1.6;color:#444;">${escapeHtml(d.customInsights)}</div>`
+    : `<ul class="insights-list">${(d.suggestedAdjustments || [])
+        .map((s) => `<li>${escapeHtml(s)}</li>`)
+        .join('')}</ul>`;
 
   return `
     <div class="report-wrap" style="display:block;">
@@ -323,6 +385,7 @@ export function buildSuportePreviewHtml(d, meta) {
         </div>
       </div>
       <div class="rpt-card">${bugList}</div>
+      <div class="rpt-card"><div class="rpt-card-title">Sugestões de ajustes do sistema</div>${suggestions}</div>
       <div class="report-footer"><span>LandscapeOS 2</span><span>Gerado em ${escapeHtml(meta.footerDate || '')}</span></div>
     </div>`;
 }

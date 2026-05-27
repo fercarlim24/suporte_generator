@@ -211,6 +211,17 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
 .insights-table th, .insights-table td { border-bottom: 1px solid #f1f3f7; padding: 6px 4px; text-align: left; color: #555; vertical-align: top; }
 .insights-table th { font-size: 10px; text-transform: uppercase; color: #888; letter-spacing: .04em; }
 .insights-list { margin: 6px 0 0 16px; font-size: 11px; color: #555; line-height: 1.6; }
+.insights-input {
+  width: 100%;
+  min-height: 110px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fcfcfd;
+  color: #333;
+  padding: 10px 12px;
+  font-size: 11px;
+  line-height: 1.6;
+}
 
 .report-footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #eaedf2; display: flex; justify-content: space-between; font-size: 10px; color: #bbb; }
 

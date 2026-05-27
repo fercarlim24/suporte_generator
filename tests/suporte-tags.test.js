@@ -45,5 +45,6 @@ describe('processSuporteRows with Drag-shaped row', () => {
     expect(envs).toContain('OS2');
     expect(envs).toContain('FORE');
     expect(data.categoryInsights.length).toBeGreaterThan(0);
+    expect(data.suggestedAdjustments.length).toBeGreaterThan(0);
   });
 });
