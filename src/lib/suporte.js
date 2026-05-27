@@ -1,5 +1,11 @@
 import { NOISE } from './config.js';
-import { escapeHtml, getCardName, getTagsRaw, normalizeCsvData } from './utils.js';
+import {
+  escapeHtml,
+  getCardName,
+  getTagsRaw,
+  normalizeCsvData,
+  parseCsvFile,
+} from './utils.js';
 
 export function parseTags(raw) {
   if (!raw) return [];
