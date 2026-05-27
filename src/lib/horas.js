@@ -32,10 +32,9 @@ export function getHorasFilters() {
   return { sis: hFilterSis, sem: hFilterSem };
 }
 
-export function processHorasRows(data) {
+function parseHorasRows(data) {
   if (!data.length) {
-    alert('CSV vazio ou inválido.');
-    return null;
+    return { ok: false, reason: 'CSV vazio ou inválido.' };
   }
   const normalized = normalizeCsvData(data);
   const headers = Object.keys(normalized[0]);
@@ -47,10 +46,10 @@ export function processHorasRows(data) {
   const colDesc = findCol(headers, ['DESCRIÇÃO', 'DESCRICAO', 'DESC', 'DESCRIPTION']);
 
   if (!colHrs) {
-    alert(
-      'Coluna de horas não encontrada. Esperado: HORAS/MINUTOS, HORAS, HORA, TIME ou HRS.',
-    );
-    return null;
+    return {
+      ok: false,
+      reason: 'Coluna de horas não encontrada. Esperado: HORAS/MINUTOS, HORAS, HORA, TIME ou HRS.',
+    };
   }
 
   const parsedRows = normalized
@@ -66,13 +65,24 @@ export function processHorasRows(data) {
     .filter((r) => r.mins > 0);
 
   if (!parsedRows.length) {
-    alert(
-      'Não encontrei horas válidas nesta aba. Verifique se você selecionou uma aba mensal e se a coluna HORAS/MINUTOS tem valores como 1:30 ou 1:30:00.',
-    );
+    return {
+      ok: false,
+      reason:
+        'Não encontrei horas válidas nesta aba. Verifique se você selecionou uma aba mensal e se a coluna HORAS/MINUTOS tem valores como 1:30 ou 1:30:00.',
+    };
+  }
+
+  return { ok: true, rows: parsedRows };
+}
+
+export function processHorasRows(data) {
+  const parsed = parseHorasRows(data);
+  if (!parsed.ok) {
+    alert(parsed.reason);
     return null;
   }
 
-  hAllRows = parsedRows;
+  hAllRows = parsed.rows;
 
   hFilterSis = 'ALL';
   hFilterSem = 'ALL';
@@ -494,8 +504,8 @@ export async function hSheetsConnect() {
 
     let sheets = await hFetchSheetList(deploymentUrl, method);
     let activeSheet = sheets?.length ? pickDefaultSheetName(sheets) : '';
-
-    const rows = await hFetchSheetRows(deploymentUrl, method, activeSheet || undefined);
+    let rows = await hFetchSheetRows(deploymentUrl, method, activeSheet || undefined);
+    let parsedRows = rows?.length ? parseHorasRows(rows) : { ok: false };
     if (!rows?.length) {
       throw new Error('Nenhum dado retornado. Verifique se a planilha está publicada corretamente.');
     }
@@ -504,6 +514,23 @@ export async function hSheetsConnect() {
       throw new Error(
         'Seu Apps Script está na versão antiga. Atualize o código no Sheets usando o bloco exibido no app para habilitar múltiplas abas.',
       );
+    }
+
+    if (!parsedRows.ok && sheets?.length > 1) {
+      const candidates = sheets.filter((s) => !isSummarySheetName(s.name));
+      for (const candidate of candidates) {
+        if (candidate.name === activeSheet) continue;
+        const candidateRows = await hFetchSheetRows(deploymentUrl, method, candidate.name);
+        const candidateParsed = candidateRows?.length
+          ? parseHorasRows(candidateRows)
+          : { ok: false };
+        if (candidateParsed.ok) {
+          activeSheet = candidate.name;
+          rows = candidateRows;
+          parsedRows = candidateParsed;
+          break;
+        }
+      }
     }
 
     const parsed = parseGoogleSheetsUrl(url);
@@ -523,11 +550,13 @@ export async function hSheetsConnect() {
     hStartAutoRefresh();
     hUpdateLiveIndicator(now);
     hRenderSheetPicker(sheets, activeSheet);
-    if (!processHorasRows(rows)) {
+    if (!parsedRows.ok) {
       throw new Error(
-        'A aba retornada pelo script não possui horas válidas. Selecione uma aba mensal ou revise as colunas da planilha.',
+        parsedRows.reason ||
+          'A aba retornada pelo script não possui horas válidas. Selecione uma aba mensal ou revise as colunas da planilha.',
       );
     }
+    processHorasRows(rows);
     if (sheets.length > 1) {
       showToast(`✓ ${sheets.length} abas — use o seletor de mês no relatório`);
     }

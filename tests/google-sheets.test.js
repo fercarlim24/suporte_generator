@@ -65,6 +65,7 @@ describe('buildAppsScriptRequestUrl', () => {
 describe('isSummarySheetName', () => {
   it('flags annual summary', () => {
     expect(isSummarySheetName('Resumo Anual')).toBe(true);
+    expect(isSummarySheetName('OVERALL')).toBe(true);
     expect(isSummarySheetName('Fevereiro')).toBe(false);
   });
 });

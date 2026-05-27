@@ -1,4 +1,4 @@
-const SUMMARY_SHEET_RE = /resumo|anual|summary|consolidado|total|geral|year/i;
+const SUMMARY_SHEET_RE = /overall|resumo|anual|summary|consolidado|total|geral|year/i;
 const MONTHS_PT = [
   'janeiro',
   'fevereiro',
