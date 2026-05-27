@@ -37,6 +37,12 @@ describe('parseTime', () => {
   it('parses H:MM', () => {
     expect(parseTime('2:15')).toBe(135);
   });
+  it('parses Apps Script duration number (fraction of day)', () => {
+    expect(parseTime(0.5)).toBe(720);
+  });
+  it('parses numeric hours', () => {
+    expect(parseTime(2)).toBe(120);
+  });
 });
 
 describe('fmtTime', () => {

@@ -1,4 +1,13 @@
-import { CAT_COLORS, CAT_ORDER, SHEETS_KEY } from './config.js';
+import { CAT_COLORS, CAT_ORDER, HORAS_SHEETS_DEFAULT, SHEETS_KEY } from './config.js';
+import {
+  buildAppsScriptRequestUrl,
+  buildSpreadsheetCsvExportUrl,
+  cleanAppsScriptDeploymentUrl,
+  isSummarySheetName,
+  parseGoogleSheetsUrl,
+  pickDefaultSheetName,
+  sortSheetTabs,
+} from './google-sheets.js';
 import {
   escapeHtml,
   findCol,
@@ -23,10 +32,9 @@ export function getHorasFilters() {
   return { sis: hFilterSis, sem: hFilterSem };
 }
 
-export function processHorasRows(data) {
+function parseHorasRows(data) {
   if (!data.length) {
-    alert('CSV vazio ou inválido.');
-    return null;
+    return { ok: false, reason: 'CSV vazio ou inválido.' };
   }
   const normalized = normalizeCsvData(data);
   const headers = Object.keys(normalized[0]);
@@ -37,7 +45,14 @@ export function processHorasRows(data) {
   const colCat = findCol(headers, ['CATEGORIA', 'CATEGORY', 'CAT']);
   const colDesc = findCol(headers, ['DESCRIÇÃO', 'DESCRICAO', 'DESC', 'DESCRIPTION']);
 
-  hAllRows = normalized
+  if (!colHrs) {
+    return {
+      ok: false,
+      reason: 'Coluna de horas não encontrada. Esperado: HORAS/MINUTOS, HORAS, HORA, TIME ou HRS.',
+    };
+  }
+
+  const parsedRows = normalized
     .filter((r) => colHrs && r[colHrs] && String(r[colHrs]).trim())
     .map((r) => ({
       mes: (r[colMes] || '').trim().toUpperCase(),
@@ -48,6 +63,26 @@ export function processHorasRows(data) {
       desc: (r[colDesc] || '').trim(),
     }))
     .filter((r) => r.mins > 0);
+
+  if (!parsedRows.length) {
+    return {
+      ok: false,
+      reason:
+        'Não encontrei horas válidas nesta aba. Verifique se você selecionou uma aba mensal e se a coluna HORAS/MINUTOS tem valores como 1:30 ou 1:30:00.',
+    };
+  }
+
+  return { ok: true, rows: parsedRows };
+}
+
+export function processHorasRows(data) {
+  const parsed = parseHorasRows(data);
+  if (!parsed.ok) {
+    alert(parsed.reason);
+    return null;
+  }
+
+  hAllRows = parsed.rows;
 
   hFilterSis = 'ALL';
   hFilterSem = 'ALL';
@@ -264,16 +299,68 @@ function hSetSheetsCfg(cfg) {
   localStorage.setItem(SHEETS_KEY, JSON.stringify(cfg));
 }
 
-async function hFetchSheets(url, method) {
+function hGetDefaultSheetsCfg() {
+  if (!HORAS_SHEETS_DEFAULT.url) return null;
+  return {
+    url: HORAS_SHEETS_DEFAULT.url,
+    method: HORAS_SHEETS_DEFAULT.method || 'appscript',
+    activeSheet: HORAS_SHEETS_DEFAULT.activeSheet || '',
+    autoRefresh: true,
+    interval: 5,
+    sheets: [],
+    lastFetched: '',
+  };
+}
+
+async function hFetchAppsScriptJson(deploymentUrl, params = {}) {
+  const res = await fetch(buildAppsScriptRequestUrl(deploymentUrl, params));
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function hFetchSheetList(url, method) {
+  if (method !== 'appscript') return null;
+  const parsed = parseGoogleSheetsUrl(url);
+  const base = parsed?.deploymentUrl || cleanAppsScriptDeploymentUrl(url);
+  try {
+    const json = await hFetchAppsScriptJson(base, { action: 'list' });
+    if (Array.isArray(json?.sheets) && json.sheets.length) {
+      return sortSheetTabs(json.sheets);
+    }
+  } catch {
+    /* script antigo sem action=list */
+  }
+  return null;
+}
+
+async function hFetchSheetRows(url, method, sheetName) {
   const cleanUrl = url.trim();
   if (method === 'appscript') {
-    const res = await fetch(cleanUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    return Array.isArray(json) ? json : [];
+    const parsed = parseGoogleSheetsUrl(cleanUrl);
+    const base = parsed?.deploymentUrl || cleanAppsScriptDeploymentUrl(cleanUrl);
+    const params = sheetName ? { sheet: sheetName } : {};
+    const json = await hFetchAppsScriptJson(base, params);
+    if (Array.isArray(json)) return json;
+    if (Array.isArray(json?.rows)) return json.rows;
+    throw new Error(
+      'Resposta inválida do Apps Script. Atualize o código no Sheets (Extensions → Apps Script).',
+    );
   }
+
+  const parsed = parseGoogleSheetsUrl(cleanUrl);
+  let fetchUrl = cleanUrl;
+  if (parsed?.kind === 'spreadsheet' && parsed.spreadsheetId) {
+    const sheet = (hGetSheetsCfg()?.sheets || []).find((s) => s.name === sheetName);
+    const gid = sheet?.gid ?? parsed.gid;
+    fetchUrl = buildSpreadsheetCsvExportUrl(parsed.spreadsheetId, gid);
+  } else if (sheetName && parsed?.kind === 'publish') {
+    throw new Error(
+      'Para trocar de mês sem republicar cada aba, use o método Apps Script (várias abas com uma URL).',
+    );
+  }
+
   return new Promise((resolve, reject) => {
-    Papa.parse(cleanUrl, {
+    Papa.parse(fetchUrl, {
       download: true,
       header: true,
       skipEmptyLines: true,
@@ -281,6 +368,11 @@ async function hFetchSheets(url, method) {
       error: (e) => reject(new Error('Erro ao baixar CSV: ' + e.message)),
     });
   });
+}
+
+/** @deprecated use hFetchSheetRows */
+async function hFetchSheets(url, method, sheetName) {
+  return hFetchSheetRows(url, method, sheetName);
 }
 
 export function hSwitchTab(tab) {
@@ -306,6 +398,51 @@ export function hCopyScript() {
   }).catch(() => alert('Copie o código manualmente.'));
 }
 
+function hRenderSheetPicker(sheets, activeName) {
+  const nav = document.getElementById('h-sheet-nav');
+  const pills = document.getElementById('h-sheet-pills');
+  const select = document.getElementById('h-sheet-select');
+  const setupNav = document.getElementById('h-sheet-nav-setup');
+  const setupSelect = document.getElementById('h-sheet-select-setup');
+
+  const list = sheets?.length ? sheets : [];
+  const show = list.length > 1;
+
+  if (nav) nav.style.display = show ? 'flex' : 'none';
+  if (setupNav) setupNav.style.display = show ? 'block' : 'none';
+
+  const fillSelect = (el) => {
+    if (!el) return;
+    el.innerHTML = '';
+    list.forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = s.name;
+      const suffix = isSummarySheetName(s.name) ? ' (resumo)' : '';
+      opt.textContent = s.name + suffix;
+      if (s.name === activeName) opt.selected = true;
+      el.appendChild(opt);
+    });
+  };
+
+  fillSelect(select);
+  fillSelect(setupSelect);
+
+  if (pills) {
+    pills.innerHTML = '';
+    if (!show) return;
+    list.forEach((s) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'h-sheet-pill' + (s.name === activeName ? ' active' : '');
+      if (isSummarySheetName(s.name)) btn.classList.add('summary');
+      btn.textContent = s.name;
+      btn.title = s.name;
+      btn.addEventListener('click', () => hSelectSheet(s.name));
+      pills.appendChild(btn);
+    });
+  }
+}
+
 function hLoadSheetsUI() {
   const cfg = hGetSheetsCfg();
   if (!cfg) return;
@@ -319,8 +456,34 @@ function hLoadSheetsUI() {
   document.getElementById('h-refresh-interval').value = cfg.interval || 5;
   const status = document.getElementById('h-sheets-status');
   status.style.display = 'flex';
+  const sheetHint = cfg.sheets?.length > 1 ? ` · ${cfg.sheets.length} abas` : '';
   document.getElementById('h-sheets-status-text').textContent =
-    `Conectado · Última atualização: ${cfg.lastFetched || 'nunca'}`;
+    `Conectado${sheetHint} · Última atualização: ${cfg.lastFetched || 'nunca'}`;
+  hRenderSheetPicker(cfg.sheets || [], cfg.activeSheet || '');
+}
+
+export async function hSelectSheet(sheetName) {
+  const cfg = hGetSheetsCfg();
+  if (!cfg?.url || !sheetName || cfg.activeSheet === sheetName) return;
+
+  setLoading(true, `Carregando aba ${sheetName}…`);
+  try {
+    const rows = await hFetchSheetRows(cfg.url, cfg.method, sheetName);
+    if (!rows?.length) throw new Error('Nenhum lançamento nesta aba.');
+    const now = new Date().toLocaleString('pt-BR');
+    cfg.activeSheet = sheetName;
+    cfg.lastFetched = now;
+    hSetSheetsCfg(cfg);
+    hRenderSheetPicker(cfg.sheets || [], sheetName);
+    hUpdateLiveIndicator(now);
+    if (!processHorasRows(rows)) {
+      throw new Error('A aba selecionada não possui lançamentos válidos de horas.');
+    }
+  } catch (err) {
+    alert(err.message || 'Erro ao carregar aba.');
+  } finally {
+    setLoading(false);
+  }
 }
 
 export async function hSheetsConnect() {
@@ -334,21 +497,82 @@ export async function hSheetsConnect() {
     return;
   }
 
+  if (method === 'publish' && parseGoogleSheetsUrl(url)?.kind === 'spreadsheet') {
+    errEl.innerHTML =
+      'Para planilhas com <strong>várias abas</strong> (um mês por aba), use <strong>Apps Script</strong> e cole a URL do Web App — assim você troca de mês sem gerar um link por aba.';
+    errEl.style.display = 'block';
+    return;
+  }
+
   const btn = document.getElementById('h-sheets-connect-btn');
   btn.textContent = 'Conectando...';
   btn.disabled = true;
   setLoading(true, 'Buscando planilha…');
 
   try {
-    const rows = await hFetchSheets(url, method);
-    if (!rows?.length) throw new Error('Nenhum dado retornado. Verifique se a planilha está publicada corretamente.');
+    const deploymentUrl =
+      method === 'appscript'
+        ? cleanAppsScriptDeploymentUrl(url)
+        : url.trim();
+
+    let sheets = await hFetchSheetList(deploymentUrl, method);
+    let activeSheet = sheets?.length ? pickDefaultSheetName(sheets) : '';
+    let rows = await hFetchSheetRows(deploymentUrl, method, activeSheet || undefined);
+    let parsedRows = rows?.length ? parseHorasRows(rows) : { ok: false };
+    if (!rows?.length) {
+      throw new Error('Nenhum dado retornado. Verifique se a planilha está publicada corretamente.');
+    }
+
+    if (method === 'appscript' && !sheets?.length) {
+      throw new Error(
+        'Seu Apps Script está na versão antiga. Atualize o código no Sheets usando o bloco exibido no app para habilitar múltiplas abas.',
+      );
+    }
+
+    if (!parsedRows.ok && sheets?.length > 1) {
+      const candidates = sheets.filter((s) => !isSummarySheetName(s.name));
+      for (const candidate of candidates) {
+        if (candidate.name === activeSheet) continue;
+        const candidateRows = await hFetchSheetRows(deploymentUrl, method, candidate.name);
+        const candidateParsed = candidateRows?.length
+          ? parseHorasRows(candidateRows)
+          : { ok: false };
+        if (candidateParsed.ok) {
+          activeSheet = candidate.name;
+          rows = candidateRows;
+          parsedRows = candidateParsed;
+          break;
+        }
+      }
+    }
+
+    const parsed = parseGoogleSheetsUrl(url);
     const now = new Date().toLocaleString('pt-BR');
     const autoRefresh = document.getElementById('h-auto-refresh').checked;
     const interval = parseInt(document.getElementById('h-refresh-interval').value, 10);
-    hSetSheetsCfg({ url, method, autoRefresh, interval, lastFetched: now });
+    hSetSheetsCfg({
+      url: deploymentUrl,
+      method,
+      sheets,
+      activeSheet,
+      spreadsheetId: parsed?.spreadsheetId || null,
+      autoRefresh,
+      interval,
+      lastFetched: now,
+    });
     hStartAutoRefresh();
     hUpdateLiveIndicator(now);
+    hRenderSheetPicker(sheets, activeSheet);
+    if (!parsedRows.ok) {
+      throw new Error(
+        parsedRows.reason ||
+          'A aba retornada pelo script não possui horas válidas. Selecione uma aba mensal ou revise as colunas da planilha.',
+      );
+    }
     processHorasRows(rows);
+    if (sheets.length > 1) {
+      showToast(`✓ ${sheets.length} abas — use o seletor de mês no relatório`);
+    }
   } catch (err) {
     errEl.textContent = err.message || 'Erro ao buscar dados.';
     errEl.style.display = 'block';
@@ -369,13 +593,15 @@ export async function hSheetsRefresh() {
   }
   setLoading(true, 'Atualizando dados…');
   try {
-    const rows = await hFetchSheets(cfg.url, cfg.method);
+    const rows = await hFetchSheetRows(cfg.url, cfg.method, cfg.activeSheet);
     if (!rows?.length) throw new Error('Sem dados');
     const now = new Date().toLocaleString('pt-BR');
     cfg.lastFetched = now;
     hSetSheetsCfg(cfg);
     hUpdateLiveIndicator(now);
-    processHorasRows(rows);
+    if (!processHorasRows(rows)) {
+      throw new Error('A aba atual não possui horas válidas.');
+    }
   } catch (err) {
     alert('Erro ao atualizar: ' + err.message);
   } finally {
@@ -401,6 +627,7 @@ export function hSheetsDisconnect() {
   document.getElementById('h-sheets-url').value = '';
   document.getElementById('h-live-indicator').style.display = 'none';
   document.getElementById('h-rpt-refresh-btn').style.display = 'none';
+  hRenderSheetPicker([], '');
 }
 
 function hUpdateLiveIndicator(lastFetched) {
@@ -441,19 +668,47 @@ export function initHoras() {
     });
   }
 
-  const cfg = hGetSheetsCfg();
+  let cfg = hGetSheetsCfg();
+  if (!cfg) {
+    const defaultCfg = hGetDefaultSheetsCfg();
+    if (defaultCfg) {
+      cfg = defaultCfg;
+      hSetSheetsCfg(defaultCfg);
+    }
+  }
+  if (cfg?.url && cfg.method === 'appscript' && !cfg.sheets?.length) {
+    hFetchSheetList(cfg.url, cfg.method)
+      .then((sheets) => {
+        if (!sheets?.length) return;
+        cfg.sheets = sheets;
+        if (!cfg.activeSheet) cfg.activeSheet = pickDefaultSheetName(sheets);
+        hSetSheetsCfg(cfg);
+        hRenderSheetPicker(sheets, cfg.activeSheet);
+      })
+      .catch(() => {});
+  }
   if (cfg) {
-    hFetchSheets(cfg.url, cfg.method)
+    const urlInput = document.getElementById('h-sheets-url');
+    if (urlInput && !urlInput.value) urlInput.value = cfg.url;
+    hFetchSheetRows(cfg.url, cfg.method, cfg.activeSheet)
       .then((rows) => {
         if (rows?.length) {
           const now = new Date().toLocaleString('pt-BR');
           cfg.lastFetched = now;
           hSetSheetsCfg(cfg);
           hUpdateLiveIndicator(now);
-          processHorasRows(rows);
+          hRenderSheetPicker(cfg.sheets || [], cfg.activeSheet || '');
+          if (!processHorasRows(rows)) return;
           hStartAutoRefresh();
         }
       })
       .catch(() => {});
   }
+
+  document.getElementById('h-sheet-select')?.addEventListener('change', (e) => {
+    hSelectSheet(e.target.value);
+  });
+  document.getElementById('h-sheet-select-setup')?.addEventListener('change', (e) => {
+    hSelectSheet(e.target.value);
+  });
 }

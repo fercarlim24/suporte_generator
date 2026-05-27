@@ -71,6 +71,13 @@ export function findCol(headers, candidates) {
 }
 
 export function parseTime(str) {
+  if (typeof str === 'number' && Number.isFinite(str)) {
+    if (str <= 0) return 0;
+    // Apps Script getValues() retorna durações como fração de dia (ex.: 0.5 = 12h).
+    if (str <= 1) return str * 24 * 60;
+    if (str <= 24) return str * 60;
+    return str;
+  }
   if (!str || typeof str !== 'string') return 0;
   const s = str.trim().replace(',', '.');
   const parts = s.split(':').map(Number);

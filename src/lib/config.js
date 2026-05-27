@@ -4,6 +4,11 @@ export const HIST_MAX = 50;
 
 export const OP_STORAGE_KEY = 'ls2-op2';
 export const SHEETS_KEY = 'ls2-horas-sheets';
+export const HORAS_SHEETS_DEFAULT = {
+  url: (import.meta.env.VITE_HORAS_SHEETS_URL || '').trim(),
+  method: (import.meta.env.VITE_HORAS_SHEETS_METHOD || 'appscript').trim(),
+  activeSheet: (import.meta.env.VITE_HORAS_SHEETS_DEFAULT_TAB || '').trim(),
+};
 
 export const NOISE = new Set([
   'EMAILS FORE', 'FORE', 'EM ANDAMENTO', 'TICKET FECHADO',
