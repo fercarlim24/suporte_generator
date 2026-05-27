@@ -8,12 +8,24 @@ export function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-/** Normalize CSV row keys (CARD NAME vs CARD_NAME, etc.) */
+/** Remove BOM e espaços extras dos cabeçalhos do CSV */
+export function normalizeCsvKey(key) {
+  return String(key)
+    .replace(/\ufeff/g, '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .replace(/_/g, ' ');
+}
+
+/** Normalize CSV row keys (CARD NAME vs CARD_NAME, BOM, etc.) */
 export function normalizeCsvRow(row) {
   const out = {};
   for (const [k, v] of Object.entries(row)) {
-    let key = String(k).trim().toUpperCase().replace(/\s+/g, ' ').replace(/_/g, ' ');
-    out[key] = v;
+    const key = normalizeCsvKey(k);
+    if (!key) continue;
+    const val = v == null ? '' : typeof v === 'string' ? v : String(v);
+    out[key] = val;
   }
   return out;
 }
@@ -22,12 +34,30 @@ export function normalizeCsvData(rows) {
   return rows.map(normalizeCsvRow);
 }
 
+/** Lê valor de coluna já normalizada ou por nome aproximado */
+export function pickRowField(row, ...candidates) {
+  for (const c of candidates) {
+    const key = normalizeCsvKey(c);
+    const v = row[key];
+    if (v != null && String(v).trim()) return String(v).trim();
+  }
+  for (const [k, v] of Object.entries(row)) {
+    const nk = normalizeCsvKey(k);
+    for (const c of candidates) {
+      if (nk === normalizeCsvKey(c) && v != null && String(v).trim()) {
+        return String(v).trim();
+      }
+    }
+  }
+  return '';
+}
+
 export function getCardName(row) {
-  return (row['CARD NAME'] || row.CARD_NAME || '').trim();
+  return pickRowField(row, 'CARD NAME', 'CARDNAME', 'NAME', 'TITLE', 'TÍTULO', 'TITULO');
 }
 
 export function getTagsRaw(row) {
-  return row.TAGS || '';
+  return pickRowField(row, 'TAGS', 'TAG', 'LABELS', 'ETIQUETAS');
 }
 
 export function findCol(headers, candidates) {
@@ -86,6 +116,7 @@ export function parseCsvFile(file, onComplete) {
   Papa.parse(file, {
     header: true,
     skipEmptyLines: true,
+    transformHeader: (h) => String(h).replace(/\ufeff/g, '').trim(),
     complete: (r) => {
       setLoading(false);
       onComplete(normalizeCsvData(r.data));

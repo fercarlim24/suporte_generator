@@ -9,7 +9,10 @@ import {
 
 export function parseTags(raw) {
   if (!raw) return [];
-  return raw.split(',').map((t) => t.trim().toUpperCase()).filter(Boolean);
+  return String(raw)
+    .split(/[,;]+/)
+    .map((t) => t.trim().toUpperCase())
+    .filter(Boolean);
 }
 
 export function processSuporteRows(data) {
@@ -182,7 +185,22 @@ export function getCurrentSuporteData() {
 }
 
 export function processAndRenderSuporte(data) {
+  if (!data?.length) {
+    alert('O CSV está vazio ou não foi lido. Confira o export Daily Cards do Drag.app.');
+    return null;
+  }
   currentSuporteData = processSuporteRows(data);
+  if (currentSuporteData.total === 0) {
+    const keys = Object.keys(normalizeCsvData([data[0]])[0] || {}).join(', ') || '(nenhuma)';
+    alert(
+      'Nenhum card encontrado no CSV.\n\n' +
+        'Colunas detectadas: ' +
+        keys +
+        '\n\nEsperado: CARD NAME (ou Card Name) e TAGS.\n' +
+        'Exporte de novo: Drag → três pontos → Export → Daily Cards CSV.',
+    );
+    return null;
+  }
   renderSuporteReport(currentSuporteData);
   return currentSuporteData;
 }

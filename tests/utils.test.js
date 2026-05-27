@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { escapeHtml, normalizeCsvRow, parseTime, fmtTime } from '../src/lib/utils.js';
+import { escapeHtml, normalizeCsvRow, normalizeCsvKey, parseTime, fmtTime } from '../src/lib/utils.js';
 import { parseTags, processSuporteRows } from '../src/lib/suporte.js';
 
 describe('escapeHtml', () => {
@@ -12,6 +12,21 @@ describe('normalizeCsvRow', () => {
   it('normalizes CARD NAME key', () => {
     const row = normalizeCsvRow({ CARD_NAME: 'Test', TAGS: 'BUG' });
     expect(row['CARD NAME']).toBe('Test');
+  });
+
+  it('strips BOM from header key', () => {
+    const row = normalizeCsvRow({ '\ufeffCARD NAME': 'Ticket A', TAGS: 'BUG' });
+    expect(row['CARD NAME']).toBe('Ticket A');
+  });
+});
+
+describe('getCardName via processSuporteRows', () => {
+  it('reads cards when header has BOM', () => {
+    const data = processSuporteRows([
+      { '\ufeffCARD NAME': 'Erro login', TAGS: 'BUG,EM ANDAMENTO' },
+    ]);
+    expect(data.total).toBe(1);
+    expect(data.bugs).toHaveLength(1);
   });
 });
 
