@@ -84,6 +84,141 @@ export function fmtTime(mins) {
   return `${h}:${String(m).padStart(2, '0')}`;
 }
 
+const PT_MONTH_NAMES = [
+  'janeiro',
+  'fevereiro',
+  'marco',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
+];
+
+const EN_MONTH_NAMES = [
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
+];
+
+function normalizeMonthToken(name) {
+  return String(name)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+function monthIndexFromName(name) {
+  const n = normalizeMonthToken(name);
+  let idx = PT_MONTH_NAMES.findIndex((m) => n === m || n.startsWith(m.slice(0, 3)));
+  if (idx < 0) idx = EN_MONTH_NAMES.findIndex((m) => n === m || n.startsWith(m.slice(0, 3)));
+  return idx;
+}
+
+function dateFromMonthYear(name, year) {
+  const idx = monthIndexFromName(name);
+  if (idx < 0 || !Number.isFinite(year)) return null;
+  const d = new Date(year, idx, 1);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Primeira data reconhecível em strings de período (Drag, pt-BR, planilha de horas). */
+export function parseReportPeriodDate(period) {
+  if (period == null) return null;
+  let s = String(period).trim();
+  if (!s) return null;
+
+  if (s.includes('—')) s = s.split('—')[0].trim();
+  if (s.includes(' / ')) s = s.split(' / ')[0].trim();
+  else if (s.includes('/')) {
+    const slashParts = s.split('/').map((p) => p.trim());
+    if (slashParts.length === 2 && slashParts.every((p) => /^\d+$/.test(p))) {
+      const a = Number(slashParts[0]);
+      const b = Number(slashParts[1]);
+      if (a > 31) return new Date(a, b - 1, 1);
+      if (b > 31) return new Date(b, a - 1, 1);
+    }
+  }
+
+  let m = s.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+  if (m) {
+    const d = new Date(+m[3], +m[2] - 1, +m[1]);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  m = s.match(/(\d{4})[\/\-](\d{1,2})/);
+  if (m) {
+    const d = new Date(+m[1], +m[2] - 1, 1);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  m = s.match(/^(\d{1,2})[\/\-](\d{4})$/);
+  if (m) {
+    const d = new Date(+m[2], +m[1] - 1, 1);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  m = s.match(/(\d{1,2})\s+([A-Za-zÀ-ú]+)\s+(\d{4})/);
+  if (m) {
+    const d = dateFromMonthYear(m[2], +m[3]);
+    if (d) {
+      d.setDate(+m[1]);
+      return d;
+    }
+    const en = new Date(`${m[2]} ${m[1]}, ${m[3]}`);
+    if (!Number.isNaN(en.getTime())) return en;
+  }
+
+  m = s.match(/([A-Za-zÀ-ú]+)\s+de\s+(\d{4})/i);
+  if (m) return dateFromMonthYear(m[1], +m[2]);
+
+  m = s.match(/^([A-Za-zÀ-ú]+)\s+(\d{4})$/i);
+  if (m) return dateFromMonthYear(m[1], +m[2]);
+
+  return null;
+}
+
+/** Rótulo curto do mês do relatório, ex. Mai/2026 */
+export function formatReportMonthLabel(period) {
+  const d = parseReportPeriodDate(period);
+  return d ? formatReportMonthLabelFromDate(d) : '';
+}
+
+export function formatReportMonthLabelFromDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const m = date.toLocaleDateString('pt-BR', { month: 'short' }).replace(/\./g, '').trim();
+  const cap = m.charAt(0).toUpperCase() + m.slice(1);
+  return `${cap}/${date.getFullYear()}`;
+}
+
+/** Título da entrada no histórico com prefixo do mês do relatório */
+export function formatHistEntryTitle(entry, typeLabels = {}) {
+  const base = entry.title || typeLabels[entry.type] || entry.type || 'Relatório';
+  const period = entry.period || entry.payload?.meta?.period || '';
+  let month = formatReportMonthLabel(period);
+  if (!month && entry.savedAt) {
+    month = formatReportMonthLabelFromDate(new Date(entry.savedAt));
+  }
+  if (!month) return base;
+  const head = month.toLowerCase().slice(0, 4);
+  if (base.toLowerCase().startsWith(head)) return base;
+  return `${month} — ${base}`;
+}
+
 let loadingCount = 0;
 
 export function setLoading(active, message = 'Processando…') {

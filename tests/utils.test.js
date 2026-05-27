@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { escapeHtml, normalizeCsvRow, normalizeCsvKey, parseTime, fmtTime } from '../src/lib/utils.js';
+import {
+  escapeHtml,
+  normalizeCsvRow,
+  normalizeCsvKey,
+  parseTime,
+  fmtTime,
+  formatReportMonthLabel,
+  formatHistEntryTitle,
+} from '../src/lib/utils.js';
 import { parseTags, processSuporteRows } from '../src/lib/suporte.js';
 
 describe('escapeHtml', () => {
@@ -61,5 +69,30 @@ describe('processSuporteRows', () => {
 describe('parseTags', () => {
   it('uppercases and trims', () => {
     expect(parseTags('bug, Ticket fechado')).toEqual(['BUG', 'TICKET FECHADO']);
+  });
+});
+
+describe('formatReportMonthLabel', () => {
+  it('parses Drag export period (English dates)', () => {
+    expect(formatReportMonthLabel('01 April 2026 — 30 April 2026')).toMatch(/abr.*2026/i);
+  });
+
+  it('parses Portuguese long month', () => {
+    expect(formatReportMonthLabel('maio de 2026')).toMatch(/mai.*2026/i);
+  });
+
+  it('parses horas-style MES column', () => {
+    expect(formatReportMonthLabel('MAIO 2026')).toMatch(/mai.*2026/i);
+  });
+});
+
+describe('formatHistEntryTitle', () => {
+  it('prefixes title with report month', () => {
+    const title = formatHistEntryTitle({
+      type: 'suporte',
+      title: 'Relatório de Suporte',
+      period: '01 April 2026 — 30 April 2026',
+    });
+    expect(title).toMatch(/^abr.*2026.*—.*Relatório de Suporte/i);
   });
 });
