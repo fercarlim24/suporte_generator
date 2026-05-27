@@ -46,7 +46,14 @@ export function processHorasRows(data) {
   const colCat = findCol(headers, ['CATEGORIA', 'CATEGORY', 'CAT']);
   const colDesc = findCol(headers, ['DESCRIÇÃO', 'DESCRICAO', 'DESC', 'DESCRIPTION']);
 
-  hAllRows = normalized
+  if (!colHrs) {
+    alert(
+      'Coluna de horas não encontrada. Esperado: HORAS/MINUTOS, HORAS, HORA, TIME ou HRS.',
+    );
+    return null;
+  }
+
+  const parsedRows = normalized
     .filter((r) => colHrs && r[colHrs] && String(r[colHrs]).trim())
     .map((r) => ({
       mes: (r[colMes] || '').trim().toUpperCase(),
@@ -57,6 +64,15 @@ export function processHorasRows(data) {
       desc: (r[colDesc] || '').trim(),
     }))
     .filter((r) => r.mins > 0);
+
+  if (!parsedRows.length) {
+    alert(
+      'Não encontrei horas válidas nesta aba. Verifique se você selecionou uma aba mensal e se a coluna HORAS/MINUTOS tem valores como 1:30 ou 1:30:00.',
+    );
+    return null;
+  }
+
+  hAllRows = parsedRows;
 
   hFilterSis = 'ALL';
   hFilterSem = 'ALL';
@@ -437,7 +453,9 @@ export async function hSelectSheet(sheetName) {
     hSetSheetsCfg(cfg);
     hRenderSheetPicker(cfg.sheets || [], sheetName);
     hUpdateLiveIndicator(now);
-    processHorasRows(rows);
+    if (!processHorasRows(rows)) {
+      throw new Error('A aba selecionada não possui lançamentos válidos de horas.');
+    }
   } catch (err) {
     alert(err.message || 'Erro ao carregar aba.');
   } finally {
@@ -482,9 +500,10 @@ export async function hSheetsConnect() {
       throw new Error('Nenhum dado retornado. Verifique se a planilha está publicada corretamente.');
     }
 
-    if (!sheets?.length) {
-      sheets = [{ name: activeSheet || 'Aba atual', gid: '' }];
-      activeSheet = sheets[0].name;
+    if (method === 'appscript' && !sheets?.length) {
+      throw new Error(
+        'Seu Apps Script está na versão antiga. Atualize o código no Sheets usando o bloco exibido no app para habilitar múltiplas abas.',
+      );
     }
 
     const parsed = parseGoogleSheetsUrl(url);
@@ -504,7 +523,11 @@ export async function hSheetsConnect() {
     hStartAutoRefresh();
     hUpdateLiveIndicator(now);
     hRenderSheetPicker(sheets, activeSheet);
-    processHorasRows(rows);
+    if (!processHorasRows(rows)) {
+      throw new Error(
+        'A aba retornada pelo script não possui horas válidas. Selecione uma aba mensal ou revise as colunas da planilha.',
+      );
+    }
     if (sheets.length > 1) {
       showToast(`✓ ${sheets.length} abas — use o seletor de mês no relatório`);
     }
@@ -534,7 +557,9 @@ export async function hSheetsRefresh() {
     cfg.lastFetched = now;
     hSetSheetsCfg(cfg);
     hUpdateLiveIndicator(now);
-    processHorasRows(rows);
+    if (!processHorasRows(rows)) {
+      throw new Error('A aba atual não possui horas válidas.');
+    }
   } catch (err) {
     alert('Erro ao atualizar: ' + err.message);
   } finally {
@@ -622,7 +647,7 @@ export function initHoras() {
           hSetSheetsCfg(cfg);
           hUpdateLiveIndicator(now);
           hRenderSheetPicker(cfg.sheets || [], cfg.activeSheet || '');
-          processHorasRows(rows);
+          if (!processHorasRows(rows)) return;
           hStartAutoRefresh();
         }
       })

@@ -1,6 +1,38 @@
-import { parseReportPeriodDate } from './utils.js';
-
 const SUMMARY_SHEET_RE = /resumo|anual|summary|consolidado|total|geral|year/i;
+const MONTHS_PT = [
+  'janeiro',
+  'fevereiro',
+  'marco',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
+];
+
+function parseSheetMonthDate(name) {
+  const raw = String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (!raw) return null;
+
+  const mmYyyy = raw.match(/^(\d{1,2})[\/-](\d{4})$/);
+  if (mmYyyy) return new Date(+mmYyyy[2], +mmYyyy[1] - 1, 1);
+
+  const yyyyMm = raw.match(/^(\d{4})[\/-](\d{1,2})$/);
+  if (yyyyMm) return new Date(+yyyyMm[1], +yyyyMm[2] - 1, 1);
+
+  for (let i = 0; i < MONTHS_PT.length; i++) {
+    if (raw.includes(MONTHS_PT[i])) return new Date(2000, i, 1);
+  }
+  return null;
+}
 
 export function isSummarySheetName(name) {
   return SUMMARY_SHEET_RE.test(String(name || ''));
@@ -67,12 +99,7 @@ export function buildSpreadsheetCsvExportUrl(spreadsheetId, gid) {
 }
 
 function sheetTabSortDate(name) {
-  let d = parseReportPeriodDate(name);
-  if (!d) {
-    const trimmed = String(name || '').trim();
-    if (trimmed) d = parseReportPeriodDate(`${trimmed} de 2000`);
-  }
-  return d;
+  return parseSheetMonthDate(name);
 }
 
 export function sortSheetTabs(sheets) {
