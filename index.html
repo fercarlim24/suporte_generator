@@ -426,7 +426,7 @@
   }
   if (!sh) sh = ss.getActiveSheet();
 
-  const data = sh.getDataRange().getValues();
+  const data = sh.getDataRange().getDisplayValues();
   if (!data.length) return jsonOut([]);
   const headers = data[0].map(function (h) { return String(h).trim(); });
   const rows = data.slice(1)
