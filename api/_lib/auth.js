@@ -9,10 +9,16 @@ export function checkApiKey(req) {
   return { ok: true };
 }
 
+/** Variáveis obrigatórias no servidor (Vercel → Environment Variables) */
+export function getServerConfigStatus() {
+  return {
+    SUPABASE_URL: Boolean(process.env.SUPABASE_URL?.trim()),
+    SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+    REPORTS_API_KEY: Boolean(process.env.REPORTS_API_KEY?.trim()),
+  };
+}
+
 export function isBackendConfigured() {
-  return Boolean(
-    process.env.SUPABASE_URL &&
-      process.env.SUPABASE_SERVICE_ROLE_KEY &&
-      process.env.REPORTS_API_KEY,
-  );
+  const s = getServerConfigStatus();
+  return s.SUPABASE_URL && s.SUPABASE_SERVICE_ROLE_KEY && s.REPORTS_API_KEY;
 }

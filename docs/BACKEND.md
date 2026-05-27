@@ -29,8 +29,32 @@ Invente uma chave longa, por exemplo: `openssl rand -hex 32`
 
 Após salvar as variáveis: **Deployments → Redeploy**.
 
-Teste: abra `https://seu-dominio.vercel.app/api/health`  
-Resposta esperada: `{"ok":true,"cloud":true}`
+Teste: abra `https://seu-dominio.vercel.app/api/health`
+
+Resposta com tudo certo:
+```json
+{
+  "ok": true,
+  "cloud": true,
+  "config": {
+    "SUPABASE_URL": true,
+    "SUPABASE_SERVICE_ROLE_KEY": true,
+    "REPORTS_API_KEY": true
+  }
+}
+```
+
+Se `cloud` for `false`, o JSON lista `missing` com o que falta.
+
+### `cloud: false` — causas comuns
+
+| Problema | Solução |
+|----------|---------|
+| Só criou `VITE_REPORTS_API_KEY` | Crie também **`REPORTS_API_KEY`** (mesmo valor) — o servidor não lê variáveis `VITE_*` |
+| Variável só em Development | Marque **Production** e **Preview** ao salvar |
+| Usou `anon` em vez de `service_role` | Em Supabase → API → copie a chave **service_role** |
+| Adicionou vars e não redeployou | **Deployments → Redeploy** |
+| Nome digitado errado | Exatamente: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `REPORTS_API_KEY` |
 
 ## 4. No app
 
