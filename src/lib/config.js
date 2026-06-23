@@ -3,7 +3,7 @@ export const HIST_KEY_LEGACY = 'ls2-history-v1';
 export const HIST_MAX = 50;
 
 export const OP_STORAGE_KEY = 'ls2-op2';
-export const SHEETS_KEY = 'ls2-horas-sheets';
+export const HORAS_DRAFT_KEY = 'ls2-horas-draft';
 
 export const NOISE = new Set([
   'EMAILS FORE', 'FORE', 'EM ANDAMENTO', 'TICKET FECHADO',

@@ -12,16 +12,7 @@ import {
 } from './lib/history.js';
 import { initAnalytics, openAnalyticsScreen } from './lib/analytics.js';
 import { initSuporte, resetSuporteView } from './lib/suporte.js';
-import {
-  initHoras,
-  resetHorasView,
-  hSwitchTab,
-  hMethodChange,
-  hCopyScript,
-  hSheetsConnect,
-  hSheetsRefresh,
-  hSheetsDisconnect,
-} from './lib/horas.js';
+import { initHoras, showHorasEditor } from './lib/horas.js';
 import {
   initOp,
   opToggleAdd,
@@ -62,26 +53,10 @@ function bindSuporteActions() {
 }
 
 function bindHorasActions() {
-  document.getElementById('btn-horas-reset')?.addEventListener('click', resetHorasView);
+  document.getElementById('btn-horas-edit')?.addEventListener('click', showHorasEditor);
   document.getElementById('btn-horas-save')?.addEventListener('click', () => histSave('horas'));
   document.getElementById('btn-horas-json')?.addEventListener('click', () => exportReportJson('horas'));
   document.getElementById('btn-horas-pdf')?.addEventListener('click', () => window.print());
-  document.getElementById('h-tab-upload')?.addEventListener('click', () => hSwitchTab('upload'));
-  document.getElementById('h-tab-sheets')?.addEventListener('click', () => hSwitchTab('sheets'));
-  document.querySelectorAll('input[name="h-method"]').forEach((r) => {
-    r.addEventListener('change', () => hMethodChange(r.value));
-  });
-  document.getElementById('h-sheets-connect-btn')?.addEventListener('click', hSheetsConnect);
-  document.getElementById('h-copy-script-btn')?.addEventListener('click', hCopyScript);
-  document.getElementById('h-sheets-disconnect-btn')?.addEventListener('click', hSheetsDisconnect);
-  document.getElementById('h-refresh-btn')?.addEventListener('click', hSheetsRefresh);
-  document.getElementById('h-rpt-refresh-btn')?.addEventListener('click', hSheetsRefresh);
-  const urlInput = document.getElementById('h-sheets-url');
-  if (urlInput) {
-    urlInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') hSheetsConnect();
-    });
-  }
 }
 
 function bindOpActions() {
@@ -128,6 +103,5 @@ if (document.readyState === 'loading') {
   boot();
 }
 
-// Legacy global hooks (optional)
 window.goTo = goTo;
 window.histSave = histSave;
