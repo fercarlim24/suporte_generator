@@ -88,6 +88,7 @@ function buildPayload(type) {
       rows,
       filterSis: filters.sis,
       filterSem: filters.sem,
+      reportMonth: buildHorasMeta().reportMonth,
       meta: buildHorasMeta(),
     };
   }
@@ -322,6 +323,8 @@ function renderEntryPreview(entry) {
         rows: entry.payload.rows,
         filterSis: entry.payload.filterSis,
         filterSem: entry.payload.filterSem,
+        reportMonth: entry.payload.reportMonth || entry.payload.meta?.reportMonth,
+        meta: entry.payload.meta,
       });
     } else if (entry.type === 'op') {
       content.className = 'hist-preview-dark';

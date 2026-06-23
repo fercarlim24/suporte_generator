@@ -1,20 +1,109 @@
-import { CAT_COLORS, CAT_ORDER, SHEETS_KEY } from './config.js';
+import { CAT_COLORS, CAT_ORDER, HORAS_DRAFT_KEY } from './config.js';
+import { reportMonthLabel } from './report-period.js';
 import {
   escapeHtml,
-  findCol,
   fmtTime,
-  normalizeCsvData,
-  parseCsvFile,
+  minsToTimeStr,
   parseTime,
-  setLoading,
   showToast,
 } from './utils.js';
-import { extractReportMonthFromPeriodLabel, reportMonthLabel } from './report-period.js';
+
+const SIS_OPTIONS = ['OS2', 'FORE'];
+const WEEK_OPTIONS = ['1', '2', '3', '4', '5'];
 
 let hAllRows = [];
 let hFilterSis = 'ALL';
 let hFilterSem = 'ALL';
-let hAutoRefreshTimer = null;
+let hReportMonth = '';
+/** @type {Array<{ id: string, sem: string, sis: string, cat: string, timeStr: string, desc: string }>} */
+let hDraftEntries = [];
+let hEditorSaveTimer = null;
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+export function defaultReportMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+}
+
+export function monthKeyToMesToken(key) {
+  if (!key) return '';
+  const [y, m] = key.split('-').map(Number);
+  if (!y || !m) return '';
+  return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+}
+
+export function normalizeHorasDraftEntry(entry = {}) {
+  return {
+    id: entry.id || crypto.randomUUID(),
+    sem: String(entry.sem || '1'),
+    sis: SIS_OPTIONS.includes(entry.sis) ? entry.sis : 'OS2',
+    cat: entry.cat || CAT_ORDER[0],
+    timeStr: entry.timeStr || minsToTimeStr(entry.mins) || '',
+    desc: String(entry.desc || '').trim(),
+  };
+}
+
+export function draftEntryToRow(entry, reportMonth) {
+  const mins = parseTime(entry.timeStr);
+  return {
+    mes: monthKeyToMesToken(reportMonth),
+    sem: String(entry.sem || '').trim(),
+    mins,
+    sis: String(entry.sis || 'OS2').trim().toUpperCase(),
+    cat: String(entry.cat || '').trim().toUpperCase(),
+    desc: String(entry.desc || '').trim(),
+  };
+}
+
+export function rowsToDraftEntries(rows = []) {
+  return rows.map((r) =>
+    normalizeHorasDraftEntry({
+      id: crypto.randomUUID(),
+      sem: r.sem,
+      sis: r.sis,
+      cat: r.cat,
+      timeStr: minsToTimeStr(r.mins),
+      desc: r.desc,
+    }),
+  );
+}
+
+function scheduleDraftSave() {
+  clearTimeout(hEditorSaveTimer);
+  hEditorSaveTimer = setTimeout(saveHorasDraft, 400);
+}
+
+function saveHorasDraft() {
+  try {
+    localStorage.setItem(
+      HORAS_DRAFT_KEY,
+      JSON.stringify({ reportMonth: hReportMonth, entries: hDraftEntries }),
+    );
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function loadHorasDraft() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HORAS_DRAFT_KEY));
+    if (!raw) return false;
+    hReportMonth = raw.reportMonth || defaultReportMonth();
+    hDraftEntries = (raw.entries || []).map(normalizeHorasDraftEntry);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function syncRowsFromDraft() {
+  hAllRows = hDraftEntries
+    .map((e) => draftEntryToRow(e, hReportMonth))
+    .filter((r) => r.mins > 0);
+}
 
 export function getHorasRows() {
   return hAllRows;
@@ -24,49 +113,120 @@ export function getHorasFilters() {
   return { sis: hFilterSis, sem: hFilterSem };
 }
 
-export function processHorasRows(data) {
-  if (!data.length) {
-    alert('CSV vazio ou inválido.');
+export function getHorasReportMonth() {
+  return hReportMonth;
+}
+
+function blankEntry() {
+  return normalizeHorasDraftEntry({ sem: '1', sis: 'OS2', cat: CAT_ORDER[0], timeStr: '', desc: '' });
+}
+
+export function addHorasDraftRow() {
+  hDraftEntries.push(blankEntry());
+  renderHorasEditor();
+  scheduleDraftSave();
+}
+
+export function removeHorasDraftRow(id) {
+  hDraftEntries = hDraftEntries.filter((e) => e.id !== id);
+  if (!hDraftEntries.length) hDraftEntries.push(blankEntry());
+  renderHorasEditor();
+  scheduleDraftSave();
+}
+
+export function showHorasEditor() {
+  document.getElementById('h-editor-area').style.display = 'block';
+  document.getElementById('h-report-wrap').style.display = 'none';
+  renderHorasEditor();
+}
+
+export function generateHorasReport() {
+  const monthInput = document.getElementById('h-month-input');
+  hReportMonth = monthInput?.value || hReportMonth || defaultReportMonth();
+  if (monthInput) monthInput.value = hReportMonth;
+
+  syncRowsFromDraft();
+  if (!hAllRows.length) {
+    alert('Adicione pelo menos um lançamento com horas válidas (ex.: 1:30 ou 2:00:00).');
     return null;
   }
-  const normalized = normalizeCsvData(data);
-  const headers = Object.keys(normalized[0]);
-  const colMes = findCol(headers, ['MÊS', 'MES', 'MONTH']);
-  const colSem = findCol(headers, ['SEMANA', 'WEEK', 'SEM']);
-  const colHrs = findCol(headers, ['HORAS', 'HORA', 'TIME', 'HRS']);
-  const colSis = findCol(headers, ['SISTEMA', 'SYSTEM', 'SYS']);
-  const colCat = findCol(headers, ['CATEGORIA', 'CATEGORY', 'CAT']);
-  const colDesc = findCol(headers, ['DESCRIÇÃO', 'DESCRICAO', 'DESC', 'DESCRIPTION']);
-
-  hAllRows = normalized
-    .filter((r) => colHrs && r[colHrs] && String(r[colHrs]).trim())
-    .map((r) => ({
-      mes: (r[colMes] || '').trim().toUpperCase(),
-      sem: (r[colSem] || '').trim(),
-      mins: parseTime(r[colHrs] || ''),
-      sis: (r[colSis] || '').trim().toUpperCase(),
-      cat: (r[colCat] || '').trim().toUpperCase(),
-      desc: (r[colDesc] || '').trim(),
-    }))
-    .filter((r) => r.mins > 0);
 
   hFilterSis = 'ALL';
   hFilterSem = 'ALL';
+  document.getElementById('h-editor-area').style.display = 'none';
   renderHorasReport();
+  saveHorasDraft();
   import('./history.js').then(({ histAutoSave }) => histAutoSave('horas'));
   return { rows: hAllRows, filterSis: hFilterSis, filterSem: hFilterSem };
 }
 
+function renderHorasEditor() {
+  const monthInput = document.getElementById('h-month-input');
+  if (monthInput && !monthInput.value) monthInput.value = hReportMonth || defaultReportMonth();
+
+  const tbody = document.getElementById('h-entries-body');
+  if (!tbody) return;
+
+  if (!hDraftEntries.length) hDraftEntries.push(blankEntry());
+
+  tbody.innerHTML = hDraftEntries
+    .map((entry) => {
+      const weekOpts = WEEK_OPTIONS.map(
+        (w) =>
+          `<option value="${w}"${entry.sem === w ? ' selected' : ''}>S${w}</option>`,
+      ).join('');
+      const sisOpts = SIS_OPTIONS.map(
+        (s) => `<option value="${s}"${entry.sis === s ? ' selected' : ''}>${s}</option>`,
+      ).join('');
+      const catOpts = CAT_ORDER.map(
+        (c) => `<option value="${c}"${entry.cat === c ? ' selected' : ''}>${c}</option>`,
+      ).join('');
+      return `<tr data-id="${entry.id}">
+        <td><select class="h-field" data-field="sem">${weekOpts}</select></td>
+        <td><select class="h-field" data-field="sis">${sisOpts}</select></td>
+        <td><select class="h-field" data-field="cat">${catOpts}</select></td>
+        <td><input class="h-field h-time" data-field="timeStr" type="text" value="${escapeHtml(entry.timeStr)}" placeholder="1:30"></td>
+        <td><input class="h-field h-desc" data-field="desc" type="text" value="${escapeHtml(entry.desc)}" placeholder="Descrição da atividade"></td>
+        <td><button type="button" class="h-row-remove" data-remove="${entry.id}" title="Remover">✕</button></td>
+      </tr>`;
+    })
+    .join('');
+
+  const totalMins = hDraftEntries.reduce((a, e) => a + parseTime(e.timeStr), 0);
+  const summary = document.getElementById('h-editor-summary');
+  if (summary) {
+    summary.textContent = `${hDraftEntries.length} linha(s) · ${fmtTime(totalMins)} no rascunho`;
+  }
+}
+
+function onEditorInput(e) {
+  const field = e.target.dataset?.field;
+  if (!field) return;
+  const row = e.target.closest('tr[data-id]');
+  if (!row) return;
+  const entry = hDraftEntries.find((x) => x.id === row.dataset.id);
+  if (!entry) return;
+  entry[field] = e.target.value;
+  scheduleDraftSave();
+  if (field === 'timeStr') {
+    const summary = document.getElementById('h-editor-summary');
+    if (summary) {
+      const totalMins = hDraftEntries.reduce((a, x) => a + parseTime(x.timeStr), 0);
+      summary.textContent = `${hDraftEntries.length} linha(s) · ${fmtTime(totalMins)} no rascunho`;
+    }
+  }
+}
+
 export function renderHorasReport() {
-  document.getElementById('h-upload-area').style.display = 'none';
+  document.getElementById('h-editor-area').style.display = 'none';
   document.getElementById('h-report-wrap').style.display = 'block';
 
   const rows = hAllRows;
-  const mes = [...new Set(rows.map((r) => r.mes).filter(Boolean))].join(' / ') || 'Período';
+  const periodLabel = hReportMonth ? reportMonthLabel(hReportMonth) : 'Período';
   const semanas = [...new Set(rows.map((r) => r.sem))].filter(Boolean).sort((a, b) => +a - +b);
   const sistemas = [...new Set(rows.map((r) => r.sis))].filter(Boolean).sort();
 
-  document.getElementById('h-rpt-period').textContent = mes;
+  document.getElementById('h-rpt-period').textContent = periodLabel;
   document.getElementById('h-rpt-footer-right').textContent =
     'Gerado em ' + new Date().toLocaleDateString('pt-BR');
 
@@ -217,13 +377,20 @@ function renderHorasTasks() {
 
 export function applyHorasPayload(payload) {
   hAllRows = payload.rows || [];
+  hReportMonth = payload.reportMonth || payload.meta?.reportMonth || hReportMonth;
+  hDraftEntries = rowsToDraftEntries(hAllRows);
   hFilterSis = payload.filterSis || 'ALL';
   hFilterSem = payload.filterSem || 'ALL';
   renderHorasReport();
 }
 
 export function buildHorasPreviewHtml(payload) {
-  const prev = { rows: hAllRows, filterSis: hFilterSis, filterSem: hFilterSem };
+  const prev = {
+    rows: hAllRows,
+    filterSis: hFilterSis,
+    filterSem: hFilterSem,
+    reportMonth: hReportMonth,
+  };
   applyHorasPayload(payload);
   const html = document.getElementById('h-report-wrap').innerHTML;
   applyHorasPayload(prev);
@@ -231,239 +398,63 @@ export function buildHorasPreviewHtml(payload) {
 }
 
 export function buildHorasMeta() {
-  const uniqueMes = [...new Set(hAllRows.map((r) => r.mes).filter(Boolean))];
-  const mes = uniqueMes.join(' / ') || 'Período';
-  const reportMonth =
-    uniqueMes.length === 1
-      ? extractReportMonthFromPeriodLabel(uniqueMes[0])
-      : extractReportMonthFromPeriodLabel(uniqueMes[0]) || null;
   return {
     title: 'Horas de Desenvolvimento',
-    period: reportMonth ? reportMonthLabel(reportMonth) : mes,
-    reportMonth,
+    period: hReportMonth ? reportMonthLabel(hReportMonth) : 'Período',
+    reportMonth: hReportMonth || null,
   };
 }
 
 export function resetHorasView() {
+  showHorasEditor();
+}
+
+export function clearHorasDraft() {
+  if (!confirm('Limpar todos os lançamentos deste rascunho?')) return;
+  hDraftEntries = [blankEntry()];
   hAllRows = [];
-  document.getElementById('h-upload-area').style.display = 'flex';
-  document.getElementById('h-report-wrap').style.display = 'none';
-  const input = document.getElementById('h-csv-input');
-  if (input) input.value = '';
+  renderHorasEditor();
+  saveHorasDraft();
+  showToast('Rascunho limpo');
 }
 
 export function loadHorasDemo() {
-  const demo = [
-    { MÊS: 'FEVEREIRO', SEMANA: '1', 'HORAS/MINUTOS': '1:00:00', SISTEMA: 'OS2', CATEGORIA: 'NOVA FEATURE', DESCRIÇÃO: 'download do recibo de verbas' },
-    { MÊS: 'FEVEREIRO', SEMANA: '1', 'HORAS/MINUTOS': '3:00:00', SISTEMA: 'FORE', CATEGORIA: 'NOVA FEATURE', DESCRIÇÃO: 'reconhecimento automático de template - ocr' },
-    { MÊS: 'FEVEREIRO', SEMANA: '2', 'HORAS/MINUTOS': '8:00:00', SISTEMA: 'OS2', CATEGORIA: 'NOVA FEATURE', DESCRIÇÃO: 'Refatoração de onboarding' },
-    { MÊS: 'FEVEREIRO', SEMANA: '4', 'HORAS/MINUTOS': '5:00:00', SISTEMA: 'FORE', CATEGORIA: 'NOVA FEATURE', DESCRIÇÃO: 'novo fluxo de aprovação de NFs' },
+  hReportMonth = defaultReportMonth();
+  hDraftEntries = [
+    normalizeHorasDraftEntry({ sem: '1', sis: 'OS2', cat: 'NOVA FEATURE', timeStr: '1:00', desc: 'download do recibo de verbas' }),
+    normalizeHorasDraftEntry({ sem: '1', sis: 'FORE', cat: 'NOVA FEATURE', timeStr: '3:00', desc: 'reconhecimento automático de template - ocr' }),
+    normalizeHorasDraftEntry({ sem: '2', sis: 'OS2', cat: 'NOVA FEATURE', timeStr: '8:00', desc: 'Refatoração de onboarding' }),
+    normalizeHorasDraftEntry({ sem: '4', sis: 'FORE', cat: 'NOVA FEATURE', timeStr: '5:00', desc: 'novo fluxo de aprovação de NFs' }),
   ];
-  processHorasRows(demo);
-}
-
-function hGetSheetsCfg() {
-  try {
-    return JSON.parse(localStorage.getItem(SHEETS_KEY));
-  } catch {
-    return null;
-  }
-}
-
-function hSetSheetsCfg(cfg) {
-  localStorage.setItem(SHEETS_KEY, JSON.stringify(cfg));
-}
-
-async function hFetchSheets(url, method) {
-  const cleanUrl = url.trim();
-  if (method === 'appscript') {
-    const res = await fetch(cleanUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    return Array.isArray(json) ? json : [];
-  }
-  return new Promise((resolve, reject) => {
-    Papa.parse(cleanUrl, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (r) => resolve(normalizeCsvData(r.data)),
-      error: (e) => reject(new Error('Erro ao baixar CSV: ' + e.message)),
-    });
-  });
-}
-
-export function hSwitchTab(tab) {
-  const isSheets = tab === 'sheets';
-  document.getElementById('h-panel-upload').style.display = isSheets ? 'none' : 'block';
-  document.getElementById('h-panel-sheets').style.display = isSheets ? 'block' : 'none';
-  document.getElementById('h-tab-upload').style.background = isSheets ? '#f7f8fa' : 'white';
-  document.getElementById('h-tab-upload').style.color = isSheets ? '#888' : '#444';
-  document.getElementById('h-tab-sheets').style.background = isSheets ? 'white' : '#f7f8fa';
-  document.getElementById('h-tab-sheets').style.color = isSheets ? '#444' : '#888';
-  if (isSheets) hLoadSheetsUI();
-}
-
-export function hMethodChange(val) {
-  document.getElementById('h-instr-publish').style.display = val === 'publish' ? 'block' : 'none';
-  document.getElementById('h-instr-apps').style.display = val === 'appscript' ? 'block' : 'none';
-}
-
-export function hCopyScript() {
-  const code = document.getElementById('h-apps-code').textContent;
-  navigator.clipboard.writeText(code).then(() => {
-    showToast('✓ Código copiado!');
-  }).catch(() => alert('Copie o código manualmente.'));
-}
-
-function hLoadSheetsUI() {
-  const cfg = hGetSheetsCfg();
-  if (!cfg) return;
-  document.getElementById('h-sheets-url').value = cfg.url;
-  const methodEl = document.querySelector(`input[name="h-method"][value="${cfg.method}"]`);
-  if (methodEl) {
-    methodEl.checked = true;
-    hMethodChange(cfg.method);
-  }
-  document.getElementById('h-auto-refresh').checked = cfg.autoRefresh || false;
-  document.getElementById('h-refresh-interval').value = cfg.interval || 5;
-  const status = document.getElementById('h-sheets-status');
-  status.style.display = 'flex';
-  document.getElementById('h-sheets-status-text').textContent =
-    `Conectado · Última atualização: ${cfg.lastFetched || 'nunca'}`;
-}
-
-export async function hSheetsConnect() {
-  const url = document.getElementById('h-sheets-url').value.trim();
-  const method = document.querySelector('input[name="h-method"]:checked')?.value || 'publish';
-  const errEl = document.getElementById('h-sheets-error');
-  errEl.style.display = 'none';
-  if (!url) {
-    errEl.textContent = 'Cole a URL antes de conectar.';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  const btn = document.getElementById('h-sheets-connect-btn');
-  btn.textContent = 'Conectando...';
-  btn.disabled = true;
-  setLoading(true, 'Buscando planilha…');
-
-  try {
-    const rows = await hFetchSheets(url, method);
-    if (!rows?.length) throw new Error('Nenhum dado retornado. Verifique se a planilha está publicada corretamente.');
-    const now = new Date().toLocaleString('pt-BR');
-    const autoRefresh = document.getElementById('h-auto-refresh').checked;
-    const interval = parseInt(document.getElementById('h-refresh-interval').value, 10);
-    hSetSheetsCfg({ url, method, autoRefresh, interval, lastFetched: now });
-    hStartAutoRefresh();
-    hUpdateLiveIndicator(now);
-    processHorasRows(rows);
-  } catch (err) {
-    errEl.textContent = err.message || 'Erro ao buscar dados.';
-    errEl.style.display = 'block';
-  } finally {
-    btn.textContent = 'Conectar';
-    btn.disabled = false;
-    setLoading(false);
-  }
-}
-
-export async function hSheetsRefresh() {
-  const cfg = hGetSheetsCfg();
-  if (!cfg) return;
-  const btn = document.getElementById('h-refresh-btn');
-  if (btn) {
-    btn.textContent = '⟳ Buscando...';
-    btn.disabled = true;
-  }
-  setLoading(true, 'Atualizando dados…');
-  try {
-    const rows = await hFetchSheets(cfg.url, cfg.method);
-    if (!rows?.length) throw new Error('Sem dados');
-    const now = new Date().toLocaleString('pt-BR');
-    cfg.lastFetched = now;
-    hSetSheetsCfg(cfg);
-    hUpdateLiveIndicator(now);
-    processHorasRows(rows);
-  } catch (err) {
-    alert('Erro ao atualizar: ' + err.message);
-  } finally {
-    if (btn) {
-      btn.textContent = '⟳ Atualizar';
-      btn.disabled = false;
-    }
-    setLoading(false);
-  }
-}
-
-function hStartAutoRefresh() {
-  if (hAutoRefreshTimer) clearInterval(hAutoRefreshTimer);
-  const cfg = hGetSheetsCfg();
-  if (!cfg?.autoRefresh) return;
-  hAutoRefreshTimer = setInterval(() => hSheetsRefresh(), cfg.interval * 60 * 1000);
-}
-
-export function hSheetsDisconnect() {
-  if (hAutoRefreshTimer) clearInterval(hAutoRefreshTimer);
-  localStorage.removeItem(SHEETS_KEY);
-  document.getElementById('h-sheets-status').style.display = 'none';
-  document.getElementById('h-sheets-url').value = '';
-  document.getElementById('h-live-indicator').style.display = 'none';
-  document.getElementById('h-rpt-refresh-btn').style.display = 'none';
-}
-
-function hUpdateLiveIndicator(lastFetched) {
-  const ind = document.getElementById('h-live-indicator');
-  ind.style.display = 'flex';
-  document.getElementById('h-live-label').textContent = 'Atualizado ' + (lastFetched || '');
-  document.getElementById('h-rpt-refresh-btn').style.display = 'inline-block';
-  const statusEl = document.getElementById('h-sheets-status');
-  if (statusEl) {
-    statusEl.style.display = 'flex';
-    document.getElementById('h-sheets-status-text').textContent =
-      'Conectado · Última atualização: ' + (lastFetched || '');
-  }
+  const monthInput = document.getElementById('h-month-input');
+  if (monthInput) monthInput.value = hReportMonth;
+  renderHorasEditor();
+  saveHorasDraft();
 }
 
 export function initHoras() {
-  const input = document.getElementById('h-csv-input');
-  const dz = document.getElementById('h-drop-zone');
-  if (input) {
-    input.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      parseCsvFile(file, processHorasRows);
-    });
-  }
-  if (dz) {
-    dz.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dz.classList.add('drag-over');
-    });
-    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-    dz.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dz.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if (!file) return;
-      parseCsvFile(file, processHorasRows);
-    });
+  if (!loadHorasDraft()) {
+    hReportMonth = defaultReportMonth();
+    hDraftEntries = [blankEntry()];
   }
 
-  const cfg = hGetSheetsCfg();
-  if (cfg) {
-    hFetchSheets(cfg.url, cfg.method)
-      .then((rows) => {
-        if (rows?.length) {
-          const now = new Date().toLocaleString('pt-BR');
-          cfg.lastFetched = now;
-          hSetSheetsCfg(cfg);
-          hUpdateLiveIndicator(now);
-          processHorasRows(rows);
-          hStartAutoRefresh();
-        }
-      })
-      .catch(() => {});
-  }
+  const editor = document.getElementById('h-editor-area');
+  editor?.addEventListener('input', onEditorInput);
+  editor?.addEventListener('change', onEditorInput);
+  editor?.addEventListener('click', (e) => {
+    const removeId = e.target.closest('[data-remove]')?.dataset.remove;
+    if (removeId) removeHorasDraftRow(removeId);
+  });
+
+  document.getElementById('h-month-input')?.addEventListener('change', (e) => {
+    hReportMonth = e.target.value || defaultReportMonth();
+    scheduleDraftSave();
+  });
+
+  document.getElementById('h-add-row')?.addEventListener('click', addHorasDraftRow);
+  document.getElementById('h-generate-report')?.addEventListener('click', generateHorasReport);
+  document.getElementById('h-clear-draft')?.addEventListener('click', clearHorasDraft);
+  document.getElementById('h-load-demo')?.addEventListener('click', loadHorasDemo);
+
+  showHorasEditor();
 }

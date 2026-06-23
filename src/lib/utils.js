@@ -84,6 +84,11 @@ export function fmtTime(mins) {
   return `${h}:${String(m).padStart(2, '0')}`;
 }
 
+export function minsToTimeStr(mins) {
+  if (!mins || mins <= 0) return '';
+  return fmtTime(mins);
+}
+
 let loadingCount = 0;
 
 export function setLoading(active, message = 'Processando…') {

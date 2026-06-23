@@ -70,9 +70,9 @@
       <div class="hub-card-hdr green">Dev</div>
       <div class="hub-card-body">
         <div class="hub-card-name">Horas de desenvolvimento</div>
-        <div class="hub-card-desc">Upload da planilha de horas (Google Sheets CSV) com breakdown por semana, sistema (OS2/FORE) e categoria.</div>
+        <div class="hub-card-desc">Lançamento manual de horas na ferramenta, com breakdown por semana, sistema (OS2/FORE) e categoria.</div>
         <div class="hub-card-tags">
-          <span class="tag">Google Sheets CSV</span>
+          <span class="tag">Input manual</span>
           <span class="tag">OS2 · FORE</span>
           <span class="tag">Semanas</span>
           <span class="tag">Exportar PDF</span>
@@ -309,145 +309,48 @@
     <span class="topbar-logo">Landscape<span>OS 2</span></span>
     <span class="topbar-sep"></span>
     <span class="topbar-title">Horas de Desenvolvimento</span>
-    <div id="h-live-indicator" style="display:none;margin-left:auto;display:none;align-items:center;gap:8px;">
-      <span id="h-live-dot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;"></span>
-      <span id="h-live-label" style="font-size:11px;color:var(--muted);"></span>
-      <button id="h-refresh-btn" style="background:none;border:1px solid var(--border-md);border-radius:4px;padding:3px 10px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit;">⟳ Atualizar</button>
-    </div>
   </div>
 
-
-  <!-- Upload state -->
-  <div class="upload-area" id="h-upload-area" style="padding-top:32px;">
-    <p class="hub-logo" style="margin-bottom:8px;">Landscape<span style="color:var(--purple)">OS 2</span> — Dev</p>
-    <h1 class="upload-heading">Horas mensais</h1>
-
-    <!-- Mode tabs -->
-    <div style="display:flex;gap:0;border:1px solid #ddd;border-radius:8px;overflow:hidden;margin-bottom:28px;width:100%;max-width:480px;">
-      <button id="h-tab-upload" id="h-tab-upload"
-        style="flex:1;padding:9px 0;font-size:12px;font-family:inherit;cursor:pointer;border:none;background:white;color:#444;font-weight:500;border-right:1px solid #ddd;transition:background .15s;">
-        ↑ Upload CSV
-      </button>
-      <button id="h-tab-sheets" id="h-tab-sheets"
-        style="flex:1;padding:9px 0;font-size:12px;font-family:inherit;cursor:pointer;border:none;background:#f7f8fa;color:#888;transition:background .15s;">
-        ⟳ Google Sheets ao vivo
-      </button>
+  <!-- Manual entry editor -->
+  <div class="h-editor-wrap" id="h-editor-area">
+    <div class="h-editor-header">
+      <p class="hub-logo" style="margin-bottom:4px;">Landscape<span style="color:var(--purple)">OS 2</span> — Dev</p>
+      <h1 class="upload-heading" style="font-size:26px;margin-bottom:4px;">Horas mensais</h1>
+      <p class="upload-sub" style="margin-bottom:20px;">Lance as horas do mês diretamente aqui. O rascunho fica salvo neste navegador.</p>
     </div>
 
-    <!-- Tab: Manual upload -->
-    <div id="h-panel-upload">
-      <div class="drop-zone" id="h-drop-zone">
-        <input type="file" id="h-csv-input" accept=".csv">
-        <div class="drop-icon">⊞</div>
-        <div class="drop-label">Arraste o CSV ou clique para selecionar</div>
-        <div class="drop-hint">Google Sheets → File → Download → CSV</div>
+    <div class="h-editor-toolbar">
+      <label class="h-month-label">
+        Mês de referência
+        <input type="month" id="h-month-input" class="h-month-input">
+      </label>
+      <div class="h-editor-actions">
+        <button type="button" class="rpt-btn" id="h-add-row">+ Lançamento</button>
+        <button type="button" class="rpt-btn" id="h-clear-draft">Limpar</button>
+        <button type="button" class="rpt-btn" id="h-load-demo">Demo</button>
+        <button type="button" class="rpt-btn primary" id="h-generate-report">Gerar relatório →</button>
       </div>
-      <p class="upload-note">
-        A planilha deve ter as colunas <strong>MÊS</strong>, <strong>SEMANA</strong>, <strong>HORAS/MINUTOS</strong>,
-        <strong>SISTEMA</strong>, <strong>CATEGORIA</strong> e <strong>DESCRIÇÃO</strong>.<br>
-        Formatos de tempo aceitos: <code>1:30:00</code> ou <code>1:30</code>.
-      </p>
     </div>
 
-    <!-- Tab: Google Sheets live connection -->
-    <div id="h-panel-sheets" style="display:none;width:100%;max-width:540px;">
+    <div class="h-editor-table-wrap">
+      <table class="h-editor-table">
+        <thead>
+          <tr>
+            <th>Semana</th>
+            <th>Sistema</th>
+            <th>Categoria</th>
+            <th>Horas</th>
+            <th>Descrição</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="h-entries-body"></tbody>
+      </table>
+    </div>
 
-      <!-- Status banner (shown when already connected) -->
-      <div id="h-sheets-status" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#15803d;display:flex;align-items:center;gap:10px;">
-        <span style="font-size:16px;">●</span>
-        <span id="h-sheets-status-text">Conectado</span>
-        <button id="h-sheets-disconnect-btn" style="margin-left:auto;background:none;border:1px solid #bbf7d0;border-radius:4px;padding:2px 10px;font-size:11px;color:#15803d;cursor:pointer;font-family:inherit;">Desconectar</button>
-      </div>
-
-      <!-- Method selector -->
-      <div style="margin-bottom:20px;">
-        <div style="font-size:12px;font-weight:500;color:#444;margin-bottom:10px;">Escolha o método:</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:white;" id="h-method-pub-wrap">
-            <input type="radio" name="h-method" value="publish" checked  style="margin-top:2px;">
-            <div>
-              <div style="font-size:13px;font-weight:500;color:#222;">Publish to Web <span style="background:#f0fdf4;color:#15803d;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600;margin-left:4px;">Recomendado</span></div>
-              <div style="font-size:11px;color:#888;margin-top:2px;">~5 minutos de cache. Zero configuração extra no Sheets.</div>
-            </div>
-          </label>
-          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:white;" id="h-method-apps-wrap">
-            <input type="radio" name="h-method" value="appscript"  style="margin-top:2px;">
-            <div>
-              <div style="font-size:13px;font-weight:500;color:#222;">Apps Script Web App <span style="background:#fff7ed;color:#c2410c;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600;margin-left:4px;">Tempo real</span></div>
-              <div style="font-size:11px;color:#888;margin-top:2px;">Dados sempre frescos. Requer colar ~15 linhas de código no Sheets.</div>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <!-- Instructions: Publish to Web -->
-      <div id="h-instr-publish">
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:14px;font-size:12px;line-height:1.8;color:#555;">
-          <strong style="color:#222;">Como gerar a URL:</strong><br>
-          1. Abra sua planilha no Google Sheets<br>
-          2. <strong>File → Share → Publish to web</strong><br>
-          3. Em "Link", selecione a aba da planilha (ex: Fevereiro)<br>
-          4. Mude o formato para <strong>Comma-separated values (.csv)</strong><br>
-          5. Clique em <strong>Publish</strong> e copie a URL gerada
-        </div>
-      </div>
-
-      <!-- Instructions: Apps Script -->
-      <div id="h-instr-apps" style="display:none;">
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:14px;font-size:12px;line-height:1.8;color:#555;">
-          <strong style="color:#222;">Como configurar:</strong><br>
-          1. Abra sua planilha → <strong>Extensions → Apps Script</strong><br>
-          2. Apague o código existente e cole o código abaixo<br>
-          3. <strong>Deploy → New deployment → Web app</strong><br>
-          4. Execute as: <strong>Me</strong> · Who has access: <strong>Anyone</strong><br>
-          5. Clique em <strong>Deploy</strong>, autorize e copie a URL
-        </div>
-        <div style="background:#0c0f1a;border-radius:8px;padding:14px;margin-bottom:14px;overflow-x:auto;">
-          <pre id="h-apps-code" style="font-family:monospace;font-size:11px;color:#e2e8f0;line-height:1.6;margin:0;white-space:pre;">function doGet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getActiveSheet();
-  const data = sh.getDataRange().getValues();
-  const headers = data[0].map(h => String(h).trim());
-  const rows = data.slice(1)
-    .filter(r => r.some(c => c !== ''))
-    .map(r => {
-      const obj = {};
-      headers.forEach((h, i) => obj[h] = r[i]);
-      return obj;
-    });
-  const out = ContentService
-    .createTextOutput(JSON.stringify(rows))
-    .setMimeType(ContentService.MimeType.JSON);
-  return out;
-}</pre>
-          <button id="h-copy-script-btn" style="margin-top:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:4px 12px;color:#e2e8f0;font-size:11px;cursor:pointer;font-family:inherit;">Copiar código</button>
-        </div>
-      </div>
-
-      <!-- URL input -->
-      <div style="display:flex;gap:8px;align-items:stretch;">
-        <input type="text" id="h-sheets-url" placeholder="Cole a URL aqui..."
-          style="flex:1;border:1px solid #ddd;border-radius:6px;padding:10px 12px;font-size:12px;font-family:inherit;outline:none;color:#222;background:white;"
-          >
-        <button id="h-sheets-connect-btn"
-          style="background:var(--purple-g);border:none;border-radius:6px;padding:0 18px;color:white;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;">
-          Conectar
-        </button>
-      </div>
-      <div id="h-sheets-error" style="display:none;font-size:11px;color:#dc2626;margin-top:8px;"></div>
-
-      <!-- Auto-refresh -->
-      <div style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:11px;color:#888;">
-        <input type="checkbox" id="h-auto-refresh" style="cursor:pointer;">
-        <label for="h-auto-refresh" style="cursor:pointer;">Atualizar automaticamente a cada</label>
-        <select id="h-refresh-interval" style="border:1px solid #ddd;border-radius:4px;padding:2px 6px;font-size:11px;font-family:inherit;background:white;color:#555;">
-          <option value="2">2 min</option>
-          <option value="5" selected>5 min</option>
-          <option value="10">10 min</option>
-          <option value="30">30 min</option>
-        </select>
-      </div>
-
+    <div class="h-editor-footer">
+      <span id="h-editor-summary">0 linha(s)</span>
+      <span class="upload-note" style="margin:0;text-align:right;">Formatos de tempo: <code>1:30</code> ou <code>2:15:00</code></span>
     </div>
   </div>
 
@@ -459,9 +362,8 @@
         <div class="report-title" id="h-rpt-period"></div>
       </div>
       <div class="report-actions np">
-        <button class="rpt-btn" id="btn-horas-reset">← Novo upload</button>
-        <button id="h-rpt-refresh-btn" class="rpt-btn" style="display:none;">⟳ Atualizar dados</button>
-        <button class="rpt-btn" id="btn-horas-save">☁ Salvar</button>
+        <button class="rpt-btn" id="btn-horas-edit">← Editar lançamentos</button>
+        <button class="rpt-btn" id="btn-horas-save">☁ Atualizar histórico</button>
         <button class="rpt-btn" id="btn-horas-json">⬇ JSON</button>
         <button class="rpt-btn primary" id="btn-horas-pdf">↓ PDF</button>
       </div>

@@ -322,6 +322,26 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
 .task-desc { color:#333; flex:1; line-height:1.5; }
 .no-tasks { text-align:center; padding:24px; color:#aaa; font-size:13px; }
 
+/* horas manual editor */
+.h-editor-wrap { max-width:960px; margin:0 auto; padding:28px 24px 48px; }
+.h-editor-header { text-align:center; margin-bottom:20px; }
+.h-editor-toolbar { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:16px; padding:16px; background:white; border:1px solid #e2e8f0; border-radius:10px; }
+.h-month-label { display:flex; flex-direction:column; gap:6px; font-size:11px; font-weight:600; color:#666; text-transform:uppercase; letter-spacing:.04em; }
+.h-month-input { border:1px solid #ddd; border-radius:6px; padding:8px 10px; font-size:13px; font-family:inherit; color:#222; background:white; }
+.h-editor-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.h-editor-table-wrap { background:white; border:1px solid #e2e8f0; border-radius:10px; overflow:auto; }
+.h-editor-table { width:100%; border-collapse:collapse; font-size:12px; min-width:720px; }
+.h-editor-table th { font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:#888; padding:10px 12px; border-bottom:2px solid #eaedf2; text-align:left; background:#fafbfc; }
+.h-editor-table td { padding:8px 10px; border-bottom:1px solid #f1f3f7; vertical-align:middle; }
+.h-editor-table tr:last-child td { border-bottom:none; }
+.h-field { width:100%; border:1px solid #e2e8f0; border-radius:6px; padding:7px 9px; font-size:12px; font-family:inherit; color:#222; background:white; outline:none; }
+.h-field:focus { border-color:#a78bfa; box-shadow:0 0 0 2px rgba(139,92,246,.12); }
+.h-time { max-width:88px; font-variant-numeric:tabular-nums; }
+.h-desc { min-width:200px; }
+.h-row-remove { background:none; border:1px solid #fecaca; color:#dc2626; border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:12px; line-height:1; }
+.h-row-remove:hover { background:#fef2f2; }
+.h-editor-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; font-size:11px; color:#888; flex-wrap:wrap; }
+
 /* ════════════════════════════════════════════
    SCREEN ANALYTICS — SUPPORT EVOLUTION
 ════════════════════════════════════════════ */
