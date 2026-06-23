@@ -4,7 +4,7 @@ Gerador de relatórios internos do **LandscapeOS 2** (suporte, horas de desenvol
 
 ## Ferramentas
 
-- **Suporte** — API Drag.app ou CSV (Daily Cards)
+- **Suporte** — CSV do Drag.app (Reports → Tags ou Daily Cards)
 - **Horas** — CSV ou Google Sheets publicado
 - **One Pager** — formulário semanal com roadmap
 - **Histórico** — relatórios salvos no navegador (JSON estruturado; compatível com versões antigas em HTML)

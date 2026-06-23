@@ -42,10 +42,9 @@
       <div class="hub-card-hdr purple">Suporte</div>
       <div class="hub-card-body">
         <div class="hub-card-name">Relatório mensal</div>
-        <div class="hub-card-desc">Importe do Drag.app via API ou CSV e gere o relatório com métricas de tickets, FORE e bugs.</div>
+        <div class="hub-card-desc">Upload do CSV exportado pelo Drag.app e geração automática do relatório com métricas de tickets, FORE e bugs.</div>
         <div class="hub-card-tags">
-          <span class="tag">Drag API</span>
-          <span class="tag">CSV</span>
+          <span class="tag">Drag.app CSV</span>
           <span class="tag">FORE</span>
           <span class="tag">Tickets</span>
           <span class="tag">Exportar PDF</span>
@@ -128,55 +127,22 @@
   <div class="upload-area" id="uploadArea">
     <p class="hub-logo" style="margin-bottom:8px;">Landscape<span style="color:var(--purple)">OS 2</span> — Suporte</p>
     <h1 class="upload-heading">Relatório mensal</h1>
-    <p class="upload-sub">Importe do Drag.app via API ou CSV<br>para gerar o relatório automaticamente.</p>
+    <p class="upload-sub">Faça o export do Drag.app (Reports → Tags ou Daily Cards)<br>e carregue o CSV para gerar o relatório automaticamente.</p>
 
-    <div class="suporte-tabs">
-      <button type="button" class="suporte-tab active" id="suporte-tab-api">API Drag</button>
-      <button type="button" class="suporte-tab" id="suporte-tab-csv">Upload CSV</button>
-    </div>
-
-    <div id="suporte-panel-api" class="suporte-panel">
-      <div id="drag-api-status" class="drag-api-hint">Verificando conexão com a API…</div>
-      <div id="drag-api-form" style="display:none;width:100%;max-width:540px;">
-        <label class="drag-field-label" for="drag-board-select">Board de suporte</label>
-        <select id="drag-board-select" class="drag-field-input">
-          <option value="">Carregando boards…</option>
-        </select>
-
-        <div class="drag-date-row">
-          <div>
-            <label class="drag-field-label" for="drag-start-date">Data inicial</label>
-            <input type="date" id="drag-start-date" class="drag-field-input">
-          </div>
-          <div>
-            <label class="drag-field-label" for="drag-end-date">Data final</label>
-            <input type="date" id="drag-end-date" class="drag-field-input">
-          </div>
-        </div>
-
-        <button type="button" class="drag-fetch-btn" id="btn-drag-fetch">Buscar cards e gerar relatório</button>
-        <p class="upload-note" style="margin-top:14px;">
-          A API busca os cards de todas as colunas do board selecionado.
-          Use o filtro de datas para limitar o período (opcional).
-        </p>
-      </div>
-      <div id="drag-api-error" class="drag-api-error" style="display:none;"></div>
-    </div>
-
-    <div id="suporte-panel-csv" class="suporte-panel" style="display:none;">
     <div class="drop-zone" id="dropZone">
       <input type="file" id="csvInput" accept=".csv">
       <div class="drop-icon">⌗</div>
       <div class="drop-label">Arraste o CSV ou clique para selecionar</div>
-      <div class="drop-hint">Export → Daily Cards — Drag.app</div>
+      <div class="drop-hint">Reports → Tags · ou Daily Cards — Drag.app</div>
     </div>
 
     <p class="upload-note">
-      <strong>Como exportar do Drag:</strong> abra o board de suporte →
-      três pontos → Export → <strong>Daily Cards CSV</strong> (arquivo completo, com Board e datas no topo).<br>
-      O app detecta automaticamente o cabeçalho <strong>CARD NAME</strong>, <strong>TAGS</strong> e <strong>COLOR</strong>.
+      <strong>Como exportar do Drag:</strong><br>
+      <strong>Reports → Tags → Board</strong> (recomendado) — exporte o CSV do relatório por tags.<br>
+      Ou no board: três pontos → Export → <strong>Daily Cards CSV</strong>.<br>
+      O app detecta automaticamente <strong>CARD NAME</strong>, <strong>TAGS</strong> e <strong>COLOR</strong>.
+      Relatórios são <strong>salvos automaticamente</strong> no histórico ao carregar o CSV.
     </p>
-    </div>
   </div>
 
   <!-- Report state (hidden until CSV loaded) -->
@@ -189,7 +155,7 @@
       </div>
       <div class="report-actions np">
         <button class="rpt-btn" id="btn-suporte-reset">← Novo upload</button>
-        <button class="rpt-btn" id="btn-suporte-save">☁ Salvar</button>
+        <button class="rpt-btn" id="btn-suporte-save">☁ Atualizar histórico</button>
         <button class="rpt-btn" id="btn-suporte-json">⬇ JSON</button>
         <button class="rpt-btn primary" id="btn-suporte-pdf">↓ PDF</button>
       </div>

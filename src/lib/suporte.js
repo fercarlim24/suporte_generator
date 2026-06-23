@@ -1,9 +1,4 @@
-import { NOISE, DRAG_BOARD_KEY } from './config.js';
-import {
-  checkDragAvailable,
-  exportDragBoard,
-  listDragBoards,
-} from './drag-api.js';
+import { NOISE } from './config.js';
 import {
   escapeHtml,
   getCardName,
@@ -11,9 +6,23 @@ import {
   normalizeCsvData,
   pickRowField,
   parseSuporteCsvFile,
-  setLoading,
-  showToast,
 } from './utils.js';
+
+let insightsSaveTimer = null;
+
+function scheduleSuporteAutoSave() {
+  import('./history.js').then(({ histAutoSave }) => histAutoSave('suporte'));
+}
+
+function bindInsightsAutoSave(input) {
+  input.addEventListener('input', () => {
+    if (currentSuporteData) currentSuporteData.customInsights = input.value;
+    clearTimeout(insightsSaveTimer);
+    insightsSaveTimer = setTimeout(() => {
+      import('./history.js').then(({ histAutoSave }) => histAutoSave('suporte', { quiet: true }));
+    }, 1500);
+  });
+}
 
 export function parseTags(raw) {
   if (!raw) return [];
@@ -342,11 +351,7 @@ export function renderSuporteReport(d, meta = buildSuporteMeta()) {
   `;
 
   const insightsInput = document.getElementById('rptInsightsInput');
-  if (insightsInput) {
-    insightsInput.addEventListener('input', () => {
-      if (currentSuporteData) currentSuporteData.customInsights = insightsInput.value;
-    });
-  }
+  if (insightsInput) bindInsightsAutoSave(insightsInput);
 }
 
 export function buildSuportePreviewHtml(d, meta) {
@@ -422,6 +427,7 @@ export function processAndRenderSuporte(data, dragMeta = {}) {
   }
   currentSuporteData.dragMeta = dragMeta;
   renderSuporteReport(currentSuporteData, buildSuporteMeta(dragMeta));
+  scheduleSuporteAutoSave();
   return currentSuporteData;
 }
 
@@ -431,122 +437,6 @@ export function resetSuporteView() {
   document.getElementById('reportWrap').style.display = 'none';
   const input = document.getElementById('csvInput');
   if (input) input.value = '';
-}
-
-function setDefaultDragDateRange() {
-  const start = document.getElementById('drag-start-date');
-  const end = document.getElementById('drag-end-date');
-  if (!start || !end || (start.value && end.value)) return;
-
-  const now = new Date();
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const toInput = (d) => d.toISOString().slice(0, 10);
-  start.value = toInput(first);
-  end.value = toInput(now);
-}
-
-function suporteSwitchTab(tab) {
-  const isApi = tab === 'api';
-  document.getElementById('suporte-tab-api')?.classList.toggle('active', isApi);
-  document.getElementById('suporte-tab-csv')?.classList.toggle('active', !isApi);
-  const apiPanel = document.getElementById('suporte-panel-api');
-  const csvPanel = document.getElementById('suporte-panel-csv');
-  if (apiPanel) apiPanel.style.display = isApi ? 'block' : 'none';
-  if (csvPanel) csvPanel.style.display = isApi ? 'none' : 'block';
-}
-
-function showDragApiError(message) {
-  const el = document.getElementById('drag-api-error');
-  if (!el) return;
-  if (!message) {
-    el.style.display = 'none';
-    el.textContent = '';
-    return;
-  }
-  el.style.display = 'block';
-  el.textContent = message;
-}
-
-async function initDragApiPanel() {
-  const statusEl = document.getElementById('drag-api-status');
-  const formEl = document.getElementById('drag-api-form');
-  const selectEl = document.getElementById('drag-board-select');
-  if (!statusEl || !formEl || !selectEl) return;
-
-  const available = await checkDragAvailable();
-  if (!available) {
-    statusEl.innerHTML =
-      'API Drag não configurada no servidor. Defina <strong>DRAG_API_KEY</strong> na Vercel e faça redeploy. ' +
-      'Enquanto isso, use a aba <strong>Upload CSV</strong>.';
-    formEl.style.display = 'none';
-    suporteSwitchTab('csv');
-    return;
-  }
-
-  statusEl.textContent = 'Conectado à API Drag. Selecione o board e o período.';
-  formEl.style.display = 'block';
-  setDefaultDragDateRange();
-
-  try {
-    const boards = await listDragBoards();
-    if (!boards.length) {
-      selectEl.innerHTML = '<option value="">Nenhum board encontrado</option>';
-      return;
-    }
-
-    const savedId = localStorage.getItem(DRAG_BOARD_KEY) || '';
-    selectEl.innerHTML = boards
-      .map(
-        (b) =>
-          `<option value="${escapeHtml(String(b.id))}"${String(b.id) === savedId ? ' selected' : ''}>${escapeHtml(b.name)}</option>`,
-      )
-      .join('');
-
-    if (!savedId && boards.length === 1) {
-      selectEl.value = String(boards[0].id);
-    }
-  } catch (e) {
-    showDragApiError(e.message || 'Erro ao carregar boards.');
-    selectEl.innerHTML = '<option value="">Erro ao carregar</option>';
-  }
-}
-
-async function fetchFromDragApi() {
-  const selectEl = document.getElementById('drag-board-select');
-  const boardId = selectEl?.value;
-  if (!boardId) {
-    alert('Selecione um board de suporte.');
-    return;
-  }
-
-  const startDate = document.getElementById('drag-start-date')?.value || '';
-  const endDate = document.getElementById('drag-end-date')?.value || '';
-
-  showDragApiError('');
-  setLoading(true, 'Buscando cards no Drag.app…');
-
-  try {
-    const { rows, meta } = await exportDragBoard(boardId, { startDate, endDate });
-    localStorage.setItem(DRAG_BOARD_KEY, boardId);
-
-    if (!rows.length) {
-      alert('Nenhum card encontrado no período selecionado.');
-      return;
-    }
-
-    processAndRenderSuporte(rows, {
-      board: meta.board,
-      period: meta.period,
-      source: 'drag-api',
-      startDate: meta.startDate,
-      endDate: meta.endDate,
-    });
-    showToast('Relatório gerado via API Drag.');
-  } catch (e) {
-    showDragApiError(e.message || 'Erro ao buscar dados do Drag.');
-  } finally {
-    setLoading(false);
-  }
 }
 
 export function loadSuporteDemo() {
@@ -575,22 +465,18 @@ export function loadSuporteDemo() {
   processAndRenderSuporte(demo);
 }
 
+function handleSuporteCsv(file) {
+  if (!file) return;
+  parseSuporteCsvFile(file, (rows, meta) => processAndRenderSuporte(rows, meta || {}));
+}
+
 export function initSuporte() {
   const input = document.getElementById('csvInput');
   const dz = document.getElementById('dropZone');
   if (!input || !dz) return;
 
-  suporteSwitchTab('api');
-  initDragApiPanel();
-
-  document.getElementById('suporte-tab-api')?.addEventListener('click', () => suporteSwitchTab('api'));
-  document.getElementById('suporte-tab-csv')?.addEventListener('click', () => suporteSwitchTab('csv'));
-  document.getElementById('btn-drag-fetch')?.addEventListener('click', fetchFromDragApi);
-
   input.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    parseSuporteCsvFile(file, (rows, meta) => processAndRenderSuporte(rows, meta || {}));
+    handleSuporteCsv(e.target.files[0]);
   });
 
   dz.addEventListener('dragover', (e) => {
@@ -601,8 +487,6 @@ export function initSuporte() {
   dz.addEventListener('drop', (e) => {
     e.preventDefault();
     dz.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-    parseSuporteCsvFile(file, (rows, meta) => processAndRenderSuporte(rows, meta || {}));
+    handleSuporteCsv(e.dataTransfer.files[0]);
   });
 }

@@ -52,6 +52,7 @@ export function processHorasRows(data) {
   hFilterSis = 'ALL';
   hFilterSem = 'ALL';
   renderHorasReport();
+  import('./history.js').then(({ histAutoSave }) => histAutoSave('horas'));
   return { rows: hAllRows, filterSis: hFilterSis, filterSem: hFilterSem };
 }
 
