@@ -4,6 +4,7 @@ export const HIST_MAX = 50;
 
 export const OP_STORAGE_KEY = 'ls2-op2';
 export const SHEETS_KEY = 'ls2-horas-sheets';
+export const DRAG_BOARD_KEY = 'ls2-drag-board';
 
 export const NOISE = new Set([
   'EMAILS FORE', 'FORE', 'EM ANDAMENTO', 'TICKET FECHADO',

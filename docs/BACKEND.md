@@ -22,8 +22,13 @@ Nunca exponha a `service_role` no frontend.
 | `SUPABASE_SERVICE_ROLE_KEY` | Servidor |
 | `REPORTS_API_KEY` | Servidor (valida header `x-api-key`) |
 | `VITE_REPORTS_API_KEY` | Build frontend (mesmo valor da chave acima) |
+| `DRAG_API_KEY` | Servidor (API Drag.app — nunca exponha no frontend) |
 
-Invente uma chave longa, por exemplo: `openssl rand -hex 32`
+A chave do Drag fica **apenas no servidor**. O frontend chama `/api/drag/*`, que faz proxy para `https://app.dragapp.com/v2`.
+
+Para obter a chave: Drag.app → Settings → API key.
+
+Invente uma chave longa para `REPORTS_API_KEY`, por exemplo: `openssl rand -hex 32`
 
 ## 3. Redeploy
 
@@ -36,10 +41,12 @@ Resposta com tudo certo:
 {
   "ok": true,
   "cloud": true,
+  "drag": true,
   "config": {
     "SUPABASE_URL": true,
     "SUPABASE_SERVICE_ROLE_KEY": true,
-    "REPORTS_API_KEY": true
+    "REPORTS_API_KEY": true,
+    "DRAG_API_KEY": true
   }
 }
 ```

@@ -1,4 +1,5 @@
 import { getServerConfigStatus, isBackendConfigured } from './_lib/auth.js';
+import { isDragConfigured } from './_lib/drag.js';
 import { json } from './_lib/http.js';
 
 export default function handler(req, res) {
@@ -15,6 +16,7 @@ export default function handler(req, res) {
   return json(res, 200, {
     ok: true,
     cloud,
+    drag: isDragConfigured(),
     config,
     ...(missing.length
       ? {
