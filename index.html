@@ -161,8 +161,8 @@
 
         <button type="button" class="drag-fetch-btn" id="btn-drag-fetch">Buscar cards e gerar relatório</button>
         <p class="upload-note" style="margin-top:14px;">
-          Por padrão, busca <strong>todos os cards ativos</strong> do board (todas as colunas).
-          Ative o filtro de período apenas se quiser limitar por data de criação/atividade.
+          Tenta primeiro o endpoint de <strong>Reports → Tags → Board</strong> (não documentado oficialmente).
+          Se não houver dados, faz fallback pelas colunas do board.
           Cards arquivados podem não aparecer via API.
         </p>
       </div>
