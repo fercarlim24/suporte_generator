@@ -1,4 +1,5 @@
 import { NOISE } from './config.js';
+import { extractReportMonthFromDragMeta, reportMonthLabel } from './report-period.js';
 import {
   escapeHtml,
   getCardName,
@@ -243,11 +244,16 @@ export function processSuporteRows(data) {
 
 export function buildSuporteMeta(dragMeta = {}) {
   const now = new Date();
+  const reportMonth = extractReportMonthFromDragMeta(dragMeta);
+  const period =
+    dragMeta.period ||
+    (reportMonth ? reportMonthLabel(reportMonth) : null) ||
+    now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
   return {
     title: dragMeta.board ? `Relatório de Suporte — ${dragMeta.board}` : 'Relatório de Suporte',
-    period:
-      dragMeta.period ||
-      now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+    period,
+    reportMonth,
     footerDate: now.toLocaleDateString('pt-BR'),
   };
 }
