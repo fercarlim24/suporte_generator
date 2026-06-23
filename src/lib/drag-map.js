@@ -18,10 +18,31 @@ export function normalizeColumn(column) {
   };
 }
 
-export function extractTagsFromCard(card) {
-  if (!card || typeof card !== 'object') return [];
+export function buildTagNameMap(tags) {
+  const map = new Map();
+  asArray(tags).forEach((tag) => {
+    const id = tag?.Id ?? tag?.id;
+    const name = tag?.Name ?? tag?.name;
+    if (id != null && name) map.set(String(id), String(name).trim());
+  });
+  return map;
+}
 
-  const candidates = [
+function resolveTagValue(item, tagNameMap) {
+  if (item == null) return '';
+  if (typeof item === 'string') return item.trim();
+  if (typeof item === 'number') return tagNameMap?.get(String(item)) || '';
+  if (typeof item === 'object') {
+    const direct = item.Name ?? item.name ?? item.Tag ?? item.tag ?? item.Label ?? item.label;
+    if (direct) return String(direct).trim();
+    const id = item.Id ?? item.id ?? item.TagId ?? item.tagId;
+    if (id != null && tagNameMap?.has(String(id))) return tagNameMap.get(String(id));
+  }
+  return '';
+}
+
+function collectTagCandidates(card) {
+  return [
     card.Tags,
     card.tags,
     card.TaskTags,
@@ -30,48 +51,41 @@ export function extractTagsFromCard(card) {
     card.labels,
     card.TagList,
     card.tagList,
+    card.TagIds,
+    card.tagIds,
+    card.CardTags,
+    card.cardTags,
+    card.TagNames,
+    card.tagNames,
   ];
+}
 
-  for (const value of candidates) {
-    const tags = asArray(value)
-      .map((item) => {
-        if (typeof item === 'string') return item.trim();
-        if (item && typeof item === 'object') {
-          return String(item.Name ?? item.name ?? item.Tag ?? item.tag ?? item.Label ?? '').trim();
-        }
-        return '';
-      })
-      .filter(Boolean);
-    if (tags.length) return tags;
+export function extractTagsFromCard(card, tagNameMap = null) {
+  if (!card || typeof card !== 'object') return [];
+
+  for (const value of collectTagCandidates(card)) {
+    const tags = asArray(value).map((item) => resolveTagValue(item, tagNameMap)).filter(Boolean);
+    if (tags.length) return [...new Set(tags)];
+  }
+
+  const raw = card.TagString ?? card.tagString ?? card.TagName ?? card.tagName;
+  if (typeof raw === 'string' && raw.trim()) {
+    return [...new Set(raw.split(/[,;\n\r]+/).map((t) => t.trim()).filter(Boolean))];
   }
 
   return [];
 }
 
-export function cardNeedsTagEnrichment(card) {
-  return extractTagsFromCard(card).length === 0;
+export function cardNeedsTagEnrichment(card, tagNameMap = null) {
+  return extractTagsFromCard(card, tagNameMap).length === 0;
 }
 
-export function mapDragCardToRow(card) {
-  const tags = extractTagsFromCard(card);
-  const participants = [
-    card.ThreadOwnerEmail,
-    card.Assignees,
-    card.Participants,
-    card.participants,
-    card.CustomFields,
-  ]
-    .filter(Boolean)
-    .join(', ');
-
-  return {
-    'CARD NAME': card.TaskName ?? card.taskName ?? card.Name ?? card.name ?? '',
-    TAGS: tags.join('\n'),
-    COLOR: card.Color ?? card.color ?? card.StatusColor ?? '',
-    PARTICIPANTS: participants,
-    EMAIL: card.ThreadOwnerEmail ?? card.email ?? '',
-    CREATED_AT: card.CreatedAt ?? card.createdAt ?? '',
-  };
+export function flattenCardDetail(detail) {
+  if (!detail || typeof detail !== 'object') return detail;
+  if (detail.TaskName || detail.DragTaskId || detail.taskName) return detail;
+  if (detail.Card && typeof detail.Card === 'object') return { ...detail, ...detail.Card };
+  if (detail.card && typeof detail.card === 'object') return { ...detail, ...detail.card };
+  return detail;
 }
 
 function parseDateInput(value) {
@@ -80,22 +94,72 @@ function parseDateInput(value) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+export function getCardActivityDates(card) {
+  const fields = [
+    card.CreatedAt,
+    card.createdAt,
+    card.UpdatedAt,
+    card.updatedAt,
+    card.ModifiedAt,
+    card.modifiedAt,
+    card.LastUpdated,
+    card.lastUpdated,
+    card.ClosedAt,
+    card.closedAt,
+    card.ResolvedAt,
+    card.resolvedAt,
+    card.LastActivityAt,
+    card.lastActivityAt,
+  ];
+
+  return fields.map(parseDateInput).filter(Boolean);
+}
+
 export function filterCardsByDate(cards, startDate, endDate) {
   const start = parseDateInput(startDate);
   const end = parseDateInput(endDate);
   if (!start && !end) return cards;
 
+  const endOfDay = end ? new Date(end) : null;
+  if (endOfDay) endOfDay.setHours(23, 59, 59, 999);
+
   return cards.filter((card) => {
-    const created = parseDateInput(card.CreatedAt ?? card.createdAt);
-    if (!created) return true;
-    if (start && created < start) return false;
-    if (end) {
-      const endOfDay = new Date(end);
-      endOfDay.setHours(23, 59, 59, 999);
-      if (created > endOfDay) return false;
-    }
-    return true;
+    const dates = getCardActivityDates(card);
+    if (!dates.length) return true;
+    return dates.some((date) => {
+      if (start && date < start) return false;
+      if (endOfDay && date > endOfDay) return false;
+      return true;
+    });
   });
+}
+
+export function mapDragCardToRow(card, tagNameMap = null) {
+  const tags = extractTagsFromCard(card, tagNameMap);
+  const participants = [
+    card.ThreadOwnerEmail,
+    card.Assignees,
+    card.Participants,
+    card.participants,
+    card.FromEmail,
+    card.fromEmail,
+    card.CustomFields,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  return {
+    'CARD NAME': card.TaskName ?? card.taskName ?? card.Name ?? card.name ?? '',
+    TAGS: tags.join('\n'),
+    COLOR: card.Color ?? card.color ?? card.StatusColor ?? card.ColumnColor ?? '',
+    PARTICIPANTS: participants,
+    EMAIL: card.ThreadOwnerEmail ?? card.email ?? card.FromEmail ?? '',
+    CREATED_AT: card.CreatedAt ?? card.createdAt ?? '',
+  };
+}
+
+export function countCardsWithTags(cards, tagNameMap = null) {
+  return cards.filter((card) => extractTagsFromCard(card, tagNameMap).length > 0).length;
 }
 
 export function formatDragPeriod(startDate, endDate) {
@@ -108,4 +172,12 @@ export function formatDragPeriod(startDate, endDate) {
   if (startDate && endDate) return `${fmt(startDate)} — ${fmt(endDate)}`;
   if (startDate) return fmt(startDate);
   return new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+
+export function pickDefaultSupportBoard(boards) {
+  if (!boards?.length) return null;
+  const savedId = null;
+  const bySupportName = boards.find((b) => /suporte|support|ls2/i.test(b.name || ''));
+  if (bySupportName) return bySupportName;
+  return boards[0];
 }

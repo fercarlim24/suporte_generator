@@ -51,5 +51,6 @@ export async function exportDragBoard(boardId, { startDate = '', endDate = '' } 
     rows: data.rows || [],
     meta: data.meta || {},
     board: data.board || null,
+    stats: data.stats || null,
   };
 }

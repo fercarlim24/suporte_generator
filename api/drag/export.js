@@ -2,6 +2,10 @@ import { checkDragProxyAuth } from '../_lib/drag-auth.js';
 import { exportBoardCards } from '../_lib/drag.js';
 import { getQuery, json } from '../_lib/http.js';
 
+export const config = {
+  maxDuration: 60,
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return json(res, 405, { error: 'Method not allowed' });
