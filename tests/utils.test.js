@@ -46,12 +46,13 @@ describe('fmtTime', () => {
 });
 
 describe('processSuporteRows', () => {
-  it('counts real tickets excluding EMAILS FORE', () => {
+  it('counts chamados excluding notification emails', () => {
     const data = processSuporteRows([
       { 'CARD NAME': 'A', TAGS: 'EMAILS FORE' },
       { 'CARD NAME': 'B', TAGS: 'BUG,✨ Action required' },
     ]);
     expect(data.total).toBe(2);
+    expect(data.notifications).toBe(1);
     expect(data.realTickets).toBe(1);
     expect(data.bugs).toHaveLength(1);
     expect(data.bugs[0].name).toBe('B');
