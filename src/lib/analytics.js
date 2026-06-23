@@ -1,22 +1,16 @@
 import { histRefreshFromCloud, getSupportReportEntries } from './history.js';
+import { getEntryReportMonth, reportMonthLabel } from './report-period.js';
 import { escapeHtml } from './utils.js';
 
-function monthKey(dateIso) {
-  const d = new Date(dateIso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
-}
-
 function monthLabel(key) {
-  const [y, m] = key.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+  return reportMonthLabel(key) || key;
 }
 
 function aggregateSupportReports(entries) {
   const map = {};
   entries.forEach((e) => {
-    const k = monthKey(e.savedAt);
+    const k = getEntryReportMonth(e);
+    if (!k) return;
     const d = e.payload.data || {};
     map[k] = map[k] || {
       month: k,

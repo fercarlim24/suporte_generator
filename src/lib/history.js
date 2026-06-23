@@ -6,6 +6,7 @@ import {
   REPORT_LABELS,
 } from './config.js';
 import { downloadJson, escapeHtml, setLoading, showToast } from './utils.js';
+import { getEntryReportMonth, reportMonthLabel } from './report-period.js';
 import {
   checkCloudAvailable,
   deleteCloudReport,
@@ -131,13 +132,25 @@ export async function histRefreshFromCloud() {
 }
 
 function findReplaceableEntry(all, type, meta) {
-  if (!meta?.period) return null;
-  return all.find(
-    (e) =>
-      !e.legacy &&
-      e.version === 2 &&
-      e.type === type &&
-      e.period === meta.period,
+  if (!meta) return null;
+
+  const reportMonth = meta.reportMonth;
+  if (reportMonth) {
+    const byMonth = all.find(
+      (e) =>
+        !e.legacy &&
+        e.version === 2 &&
+        e.type === type &&
+        getEntryReportMonth(e) === reportMonth,
+    );
+    if (byMonth) return byMonth;
+  }
+
+  if (!meta.period) return null;
+  return (
+    all.find(
+      (e) => !e.legacy && e.version === 2 && e.type === type && e.period === meta.period,
+    ) || null
   );
 }
 
@@ -149,12 +162,18 @@ export async function histSave(type, options = {}) {
     return null;
   }
   const meta = payload.meta || buildMeta(type);
+  const reportMonth =
+    meta.reportMonth ||
+    getEntryReportMonth({ type, period: meta.period, payload, savedAt: new Date().toISOString() });
+  if (reportMonth && payload.meta) payload.meta.reportMonth = reportMonth;
+
   const entry = {
     id: Date.now(),
     type,
     version: 2,
     title: meta.title,
     period: meta.period,
+    reportMonth: reportMonth || undefined,
     savedAt: new Date().toISOString(),
     payload,
     cloud: false,
@@ -179,7 +198,11 @@ export async function histSave(type, options = {}) {
       entry.cloud = true;
       entry.id = saved.id;
       const updated = histGetAll().filter((e) => !e.legacy);
-      const idx = updated.findIndex((e) => e.type === type && e.period === meta.period);
+      const idx = updated.findIndex(
+        (e) =>
+          e.type === type &&
+          (reportMonth ? getEntryReportMonth(e) === reportMonth : e.period === meta.period),
+      );
       if (idx >= 0) updated[idx] = { ...updated[idx], cloud: true, id: saved.id };
       histSetAll([...updated.slice(0, HIST_MAX), ...getLocalLegacy()]);
       if (!quiet) showToast(existing ? '✓ Histórico atualizado (local + nuvem)' : '✓ Salvo local e na nuvem');
@@ -203,7 +226,9 @@ export async function histAutoSave(type, options = {}) {
   const { quiet = false, ...rest } = options;
   const entry = await histSave(type, { silent: true, quiet: true, replacePeriod: true, ...rest });
   if (entry && !quiet) {
-    showToast(`✓ Salvo automaticamente · ${entry.period || entry.title}`);
+    const month = getEntryReportMonth(entry);
+    const label = month ? reportMonthLabel(month) : entry.period || entry.title;
+    showToast(`✓ Salvo automaticamente · ${label}`);
   }
   return entry;
 }
@@ -389,10 +414,12 @@ export function histRenderList(filter) {
   container.innerHTML = '';
   shown.forEach((e) => {
     const d = new Date(e.savedAt);
-    const dateStr =
+    const importStr =
       d.toLocaleDateString('pt-BR') +
       ' às ' +
       d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const reportMonth = getEntryReportMonth(e);
+    const monthStr = reportMonth ? reportMonthLabel(reportMonth) : e.period || '';
     const row = document.createElement('div');
     row.className = 'hist-entry';
     const cloudTag = e.cloud ? ' · ☁' : e.legacy ? ' · legado' : '';
@@ -400,7 +427,7 @@ export function histRenderList(filter) {
       <span class="hist-badge ${REPORT_BADGE[e.type] || ''}">${REPORT_LABELS[e.type] || e.type}${cloudTag}</span>
       <div class="hist-info">
         <div class="hist-title">${escapeHtml(e.title)}</div>
-        <div class="hist-meta">${e.period ? escapeHtml(e.period) + ' · ' : ''}${dateStr}</div>
+        <div class="hist-meta">${monthStr ? escapeHtml(monthStr) + ' · importado ' : ''}${importStr}</div>
       </div>
       <div class="hist-actions"></div>`;
     const actions = row.querySelector('.hist-actions');

@@ -9,6 +9,7 @@ import {
   setLoading,
   showToast,
 } from './utils.js';
+import { extractReportMonthFromPeriodLabel, reportMonthLabel } from './report-period.js';
 
 let hAllRows = [];
 let hFilterSis = 'ALL';
@@ -230,9 +231,17 @@ export function buildHorasPreviewHtml(payload) {
 }
 
 export function buildHorasMeta() {
-  const mes =
-    [...new Set(hAllRows.map((r) => r.mes).filter(Boolean))].join(' / ') || 'Período';
-  return { title: 'Horas de Desenvolvimento', period: mes };
+  const uniqueMes = [...new Set(hAllRows.map((r) => r.mes).filter(Boolean))];
+  const mes = uniqueMes.join(' / ') || 'Período';
+  const reportMonth =
+    uniqueMes.length === 1
+      ? extractReportMonthFromPeriodLabel(uniqueMes[0])
+      : extractReportMonthFromPeriodLabel(uniqueMes[0]) || null;
+  return {
+    title: 'Horas de Desenvolvimento',
+    period: reportMonth ? reportMonthLabel(reportMonth) : mes,
+    reportMonth,
+  };
 }
 
 export function resetHorasView() {
