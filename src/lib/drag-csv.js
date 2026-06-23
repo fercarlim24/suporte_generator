@@ -8,15 +8,16 @@ import { normalizeCsvKey, normalizeCsvRow } from './utils.js';
  */
 export function findDragHeaderRowIndex(matrix) {
   if (!matrix?.length) return -1;
-  const limit = Math.min(matrix.length, 40);
+  const limit = Math.min(matrix.length, 60);
   for (let i = 0; i < limit; i++) {
     const row = matrix[i];
     if (!row?.length) continue;
-    const hasCardName = row.some((cell) => {
-      const k = normalizeCsvKey(cell);
-      return k === 'CARD NAME' || k === 'CARDNAME';
-    });
-    if (hasCardName) return i;
+    const keys = row.map((cell) => normalizeCsvKey(cell));
+    const hasCardName = keys.some(
+      (k) => k === 'CARD NAME' || k === 'CARDNAME' || k === 'NAME' || k === 'TITLE',
+    );
+    const hasTags = keys.some((k) => k === 'TAGS' || k === 'TAG' || k === 'LABELS');
+    if (hasCardName || hasTags) return i;
   }
   return -1;
 }
@@ -35,6 +36,8 @@ export function extractDragExportMeta(matrix, headerIndex) {
     if (label === 'USER') meta.user = value;
     if (label === 'START DATE') meta.startDate = value;
     if (label === 'END DATE') meta.endDate = value;
+    if (label === 'REPORT') meta.report = value;
+    if (label === 'PERIOD') meta.period = value;
   }
   if (meta.startDate && meta.endDate) {
     meta.period = `${meta.startDate} — ${meta.endDate}`;

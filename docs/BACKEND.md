@@ -22,11 +22,6 @@ Nunca exponha a `service_role` no frontend.
 | `SUPABASE_SERVICE_ROLE_KEY` | Servidor |
 | `REPORTS_API_KEY` | Servidor (valida header `x-api-key`) |
 | `VITE_REPORTS_API_KEY` | Build frontend (mesmo valor da chave acima) |
-| `DRAG_API_KEY` | Servidor (API Drag.app — nunca exponha no frontend) |
-
-A chave do Drag fica **apenas no servidor**. O frontend chama `/api/drag/*`, que faz proxy para `https://app.dragapp.com/v2`.
-
-Para obter a chave: Drag.app → Settings → API key.
 
 Invente uma chave longa para `REPORTS_API_KEY`, por exemplo: `openssl rand -hex 32`
 
@@ -41,12 +36,10 @@ Resposta com tudo certo:
 {
   "ok": true,
   "cloud": true,
-  "drag": true,
   "config": {
     "SUPABASE_URL": true,
     "SUPABASE_SERVICE_ROLE_KEY": true,
-    "REPORTS_API_KEY": true,
-    "DRAG_API_KEY": true
+    "REPORTS_API_KEY": true
   }
 }
 ```
@@ -65,8 +58,9 @@ Se `cloud` for `false`, o JSON lista `missing` com o que falta.
 
 ## 4. No app
 
-- **☁ Salvar** envia para nuvem + navegador  
-- **Histórico** mostra status da nuvem e botão **Sincronizar**  
+- Relatórios de **suporte** são salvos **automaticamente** ao carregar o CSV (substitui o mesmo período no histórico)
+- **☁ Atualizar histórico** força nova gravação manual
+- **Histórico** mostra status da nuvem e botão **Sincronizar**
 - **Enviar locais para nuvem** migra o histórico antigo do `localStorage`
 
 Sem as variáveis, o app continua funcionando só com armazenamento local.

@@ -37,4 +37,12 @@ describe('parseDragDailyCardsMatrix', () => {
     expect(rows[0].TAGS).toContain('TICKET FECHADO');
     expect(rows[0].TAGS).toContain('EMPRESAS/CONFIG');
   });
+
+  it('finds header row with TAGS column', () => {
+    const matrix = [
+      ['TAGS', 'CARD NAME', 'COLOR'],
+      ['BUG', 'Erro login', 'RED'],
+    ];
+    expect(findDragHeaderRowIndex(matrix)).toBe(0);
+  });
 });

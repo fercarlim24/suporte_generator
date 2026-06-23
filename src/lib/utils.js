@@ -130,8 +130,25 @@ export function parseCsvFile(file, onComplete) {
   });
 }
 
+function parseSuporteCsvWithHeaders(file, onComplete) {
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: 'greedy',
+    transformHeader: (h) => String(h).replace(/\ufeff/g, '').trim(),
+    complete: (r) => {
+      const rows = normalizeCsvData(r.data || []).filter((row) => getCardName(row));
+      onComplete(rows, {});
+    },
+    error: () => onComplete([], {}),
+  });
+}
+
+function countNamedCards(rows) {
+  return rows.filter((row) => getCardName(row)).length;
+}
+
 /**
- * CSV de suporte — export Drag Daily Cards (metadados + cabeçalho na ~linha 6).
+ * CSV de suporte — Drag Daily Cards ou Reports → Tags (metadados + cabeçalho).
  */
 export function parseSuporteCsvFile(file, onComplete) {
   if (typeof Papa === 'undefined') {
@@ -143,8 +160,22 @@ export function parseSuporteCsvFile(file, onComplete) {
     header: false,
     skipEmptyLines: 'greedy',
     complete: (r) => {
+      const matrix = r.data || [];
+      let { rows, meta } = parseDragDailyCardsMatrix(matrix);
+
+      if (!countNamedCards(rows)) {
+        parseSuporteCsvWithHeaders(file, (headerRows, headerMeta) => {
+          setLoading(false);
+          if (countNamedCards(headerRows)) {
+            onComplete(headerRows, headerMeta);
+            return;
+          }
+          onComplete(rows, meta);
+        });
+        return;
+      }
+
       setLoading(false);
-      const { rows, meta } = parseDragDailyCardsMatrix(r.data || []);
       onComplete(rows, meta);
     },
     error: () => {
@@ -153,7 +184,6 @@ export function parseSuporteCsvFile(file, onComplete) {
     },
   });
 }
-
 
 export function showToast(msg, duration = 2500) {
   const t = document.getElementById('hist-toast');

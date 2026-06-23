@@ -76,7 +76,8 @@ function buildPayload(type) {
   if (type === 'suporte') {
     const data = getCurrentSuporteData();
     if (!data) return null;
-    return { data, meta: buildSuporteMeta() };
+    const meta = buildSuporteMeta(data.dragMeta || {});
+    return { data, meta };
   }
   if (type === 'horas') {
     const rows = getHorasRows();
@@ -129,11 +130,23 @@ export async function histRefreshFromCloud() {
   }
 }
 
-export async function histSave(type) {
+function findReplaceableEntry(all, type, meta) {
+  if (!meta?.period) return null;
+  return all.find(
+    (e) =>
+      !e.legacy &&
+      e.version === 2 &&
+      e.type === type &&
+      e.period === meta.period,
+  );
+}
+
+export async function histSave(type, options = {}) {
+  const { silent = false, quiet = false, replacePeriod = true } = options;
   const payload = buildPayload(type);
   if (!payload) {
-    alert('Gere o relatório primeiro antes de salvar.');
-    return;
+    if (!silent) alert('Gere o relatório primeiro antes de salvar.');
+    return null;
   }
   const meta = payload.meta || buildMeta(type);
   const entry = {
@@ -147,30 +160,52 @@ export async function histSave(type) {
     cloud: false,
   };
 
-  const all = histGetAll().filter((e) => !e.legacy);
+  let all = histGetAll().filter((e) => !e.legacy);
+  const existing = replacePeriod ? findReplaceableEntry(all, type, meta) : null;
+  if (existing) {
+    entry.id = existing.id;
+    entry.cloud = existing.cloud;
+    all = all.filter((e) => e.id !== existing.id);
+  }
+
   all.unshift(entry);
   histSetAll([...all.slice(0, HIST_MAX), ...getLocalLegacy()]);
   histUpdateHubCount();
 
   if (isCloudAvailable()) {
-    setLoading(true, 'Salvando na nuvem…');
+    if (!quiet) setLoading(true, 'Salvando na nuvem…');
     try {
       const saved = await saveCloudReport(entry);
       entry.cloud = true;
       entry.id = saved.id;
       const updated = histGetAll().filter((e) => !e.legacy);
-      const idx = updated.findIndex((e) => e.savedAt === entry.savedAt && e.type === entry.type);
-      if (idx >= 0) updated[idx] = { ...entry, cloud: true, id: saved.id };
+      const idx = updated.findIndex((e) => e.type === type && e.period === meta.period);
+      if (idx >= 0) updated[idx] = { ...updated[idx], cloud: true, id: saved.id };
       histSetAll([...updated.slice(0, HIST_MAX), ...getLocalLegacy()]);
-      showToast('✓ Salvo local e na nuvem');
+      if (!quiet) showToast(existing ? '✓ Histórico atualizado (local + nuvem)' : '✓ Salvo local e na nuvem');
     } catch (err) {
-      showToast('✓ Salvo local · nuvem: ' + err.message);
+      if (!quiet) showToast('✓ Salvo local · nuvem: ' + err.message);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
-  } else {
-    showToast('✓ Salvo no histórico (só neste navegador)');
+  } else if (!quiet) {
+    showToast(
+      existing
+        ? '✓ Histórico atualizado neste navegador'
+        : '✓ Salvo no histórico (só neste navegador)',
+    );
   }
+
+  return entry;
+}
+
+export async function histAutoSave(type, options = {}) {
+  const { quiet = false, ...rest } = options;
+  const entry = await histSave(type, { silent: true, quiet: true, replacePeriod: true, ...rest });
+  if (entry && !quiet) {
+    showToast(`✓ Salvo automaticamente · ${entry.period || entry.title}`);
+  }
+  return entry;
 }
 
 export async function histMigrateLocalToCloud() {
@@ -346,7 +381,7 @@ export function histRenderList(filter) {
     container.innerHTML = `<div class="hist-empty">
       <div class="hist-empty-icon">📋</div>
       <div style="font-size:15px;color:var(--text);margin-bottom:8px;">Nenhum relatório salvo ainda</div>
-      <div style="font-size:12px;">Gere um relatório em qualquer módulo e clique em <strong>☁ Salvar</strong>.</div>
+      <div style="font-size:12px;">Relatórios de suporte são salvos automaticamente ao carregar o CSV. Use <strong>☁ Atualizar histórico</strong> para forçar nova gravação.</div>
     </div>`;
     return;
   }

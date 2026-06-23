@@ -136,35 +136,6 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
 .drop-label { font-size: 14px; color: #444; margin-bottom: 6px; }
 .drop-hint { font-size: 11px; color: #999; }
 .upload-note { margin-top: 20px; font-size: 11px; color: #888; max-width: 460px; text-align: center; line-height: 1.7; }
-
-.suporte-tabs {
-  display: flex; gap: 0; margin: 20px 0 16px;
-  border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;
-  width: 100%; max-width: 540px;
-}
-.suporte-tab {
-  flex: 1; padding: 10px 16px; border: none; background: #f9fafb;
-  font-size: 12px; font-weight: 500; color: #666; cursor: pointer; font-family: inherit;
-}
-.suporte-tab.active { background: white; color: var(--purple); box-shadow: inset 0 -2px 0 var(--purple); }
-.suporte-panel { width: 100%; max-width: 540px; }
-.drag-api-hint {
-  font-size: 12px; color: #666; background: #f8fafc; border: 1px solid #e2e8f0;
-  border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; line-height: 1.5;
-}
-.drag-field-label { display: block; font-size: 11px; color: #666; margin-bottom: 6px; }
-.drag-field-input {
-  width: 100%; border: 1px solid #ddd; border-radius: 6px; padding: 8px 10px;
-  font-size: 13px; font-family: inherit; margin-bottom: 12px; background: white;
-}
-.drag-date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.drag-fetch-btn {
-  width: 100%; background: var(--purple-g); border: none; border-radius: 6px;
-  padding: 10px 16px; color: white; font-size: 13px; font-weight: 500;
-  cursor: pointer; font-family: inherit; margin-top: 4px;
-}
-.drag-fetch-btn:hover { opacity: .92; }
-.drag-api-error { font-size: 12px; color: #dc2626; margin-top: 10px; line-height: 1.5; }
 .demo-btn { margin-top: 24px; background: none; border: 1px solid #ddd; border-radius: 6px; padding: 7px 18px; font-size: 12px; color: #888; cursor: pointer; font-family: inherit; transition: border-color .15s, color .15s; }
 .demo-btn:hover { border-color: #bbb; color: #444; }
 

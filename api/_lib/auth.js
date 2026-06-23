@@ -15,7 +15,6 @@ export function getServerConfigStatus() {
     SUPABASE_URL: Boolean(process.env.SUPABASE_URL?.trim()),
     SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
     REPORTS_API_KEY: Boolean(process.env.REPORTS_API_KEY?.trim()),
-    DRAG_API_KEY: Boolean(process.env.DRAG_API_KEY?.trim()),
   };
 }
 
