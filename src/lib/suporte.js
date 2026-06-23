@@ -436,13 +436,36 @@ export function resetSuporteView() {
 function setDefaultDragDateRange() {
   const start = document.getElementById('drag-start-date');
   const end = document.getElementById('drag-end-date');
-  if (!start || !end || (start.value && end.value)) return;
+  if (!start || !end) return;
+  if (start.value && end.value) return;
 
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
   const toInput = (d) => d.toISOString().slice(0, 10);
   start.value = toInput(first);
   end.value = toInput(now);
+}
+
+function bindDragDateFilterToggle() {
+  const checkbox = document.getElementById('drag-use-date-filter');
+  const fields = document.getElementById('drag-date-fields');
+  if (!checkbox || !fields) return;
+
+  const sync = () => {
+    const on = checkbox.checked;
+    fields.style.display = on ? 'grid' : 'none';
+    if (on) setDefaultDragDateRange();
+  };
+
+  checkbox.addEventListener('change', sync);
+  sync();
+}
+
+function pickBoardId(boards, savedId) {
+  if (savedId && boards.some((b) => String(b.id) === savedId)) return savedId;
+  const supportBoard = boards.find((b) => /suporte|support|ls2/i.test(b.name || ''));
+  if (supportBoard) return String(supportBoard.id);
+  return boards.length ? String(boards[0].id) : '';
 }
 
 function suporteSwitchTab(tab) {
@@ -483,9 +506,9 @@ async function initDragApiPanel() {
     return;
   }
 
-  statusEl.textContent = 'Conectado à API Drag. Selecione o board e o período.';
+  statusEl.textContent = 'Conectado à API Drag. Selecione o board e busque os cards.';
   formEl.style.display = 'block';
-  setDefaultDragDateRange();
+  bindDragDateFilterToggle();
 
   try {
     const boards = await listDragBoards();
@@ -498,13 +521,11 @@ async function initDragApiPanel() {
     selectEl.innerHTML = boards
       .map(
         (b) =>
-          `<option value="${escapeHtml(String(b.id))}"${String(b.id) === savedId ? ' selected' : ''}>${escapeHtml(b.name)}</option>`,
+          `<option value="${escapeHtml(String(b.id))}">${escapeHtml(b.name)}</option>`,
       )
       .join('');
 
-    if (!savedId && boards.length === 1) {
-      selectEl.value = String(boards[0].id);
-    }
+    selectEl.value = pickBoardId(boards, savedId);
   } catch (e) {
     showDragApiError(e.message || 'Erro ao carregar boards.');
     selectEl.innerHTML = '<option value="">Erro ao carregar</option>';
@@ -519,18 +540,22 @@ async function fetchFromDragApi() {
     return;
   }
 
-  const startDate = document.getElementById('drag-start-date')?.value || '';
-  const endDate = document.getElementById('drag-end-date')?.value || '';
+  const useDateFilter = document.getElementById('drag-use-date-filter')?.checked;
+  const startDate = useDateFilter ? document.getElementById('drag-start-date')?.value || '' : '';
+  const endDate = useDateFilter ? document.getElementById('drag-end-date')?.value || '' : '';
 
   showDragApiError('');
-  setLoading(true, 'Buscando cards no Drag.app…');
+  setLoading(true, 'Buscando cards no Drag.app… (pode levar alguns segundos)');
 
   try {
-    const { rows, meta } = await exportDragBoard(boardId, { startDate, endDate });
+    const { rows, meta, stats } = await exportDragBoard(boardId, { startDate, endDate });
     localStorage.setItem(DRAG_BOARD_KEY, boardId);
 
     if (!rows.length) {
-      alert('Nenhum card encontrado no período selecionado.');
+      const hint = useDateFilter
+        ? 'Nenhum card no período. Tente desmarcar o filtro de datas.'
+        : 'Nenhum card encontrado no board. Verifique se selecionou o board correto.';
+      alert(hint);
       return;
     }
 
@@ -541,7 +566,20 @@ async function fetchFromDragApi() {
       startDate: meta.startDate,
       endDate: meta.endDate,
     });
-    showToast('Relatório gerado via API Drag.');
+
+    const tagPct = stats?.cardsAfterDateFilter
+      ? Math.round((stats.cardsWithTags / stats.cardsAfterDateFilter) * 100)
+      : 0;
+    const summary = stats
+      ? `${stats.cardsExported} cards importados (${stats.cardsRaw} no board, ${stats.columns} colunas, ${tagPct}% com tags)`
+      : `${rows.length} cards importados`;
+    showToast(summary);
+    if (stats && stats.cardsWithTags < stats.cardsAfterDateFilter * 0.5) {
+      showDragApiError(
+        `Atenção: apenas ${stats.cardsWithTags} de ${stats.cardsAfterDateFilter} cards têm tags. ` +
+          'Métricas de categoria/status podem ficar incompletas. Se divergir do CSV, use Upload CSV.',
+      );
+    }
   } catch (e) {
     showDragApiError(e.message || 'Erro ao buscar dados do Drag.');
   } finally {

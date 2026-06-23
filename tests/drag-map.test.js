@@ -4,6 +4,8 @@ import {
   mapDragCardToRow,
   filterCardsByDate,
   formatDragPeriod,
+  buildTagNameMap,
+  flattenCardDetail,
 } from '../src/lib/drag-map.js';
 
 describe('extractTagsFromCard', () => {
@@ -15,6 +17,11 @@ describe('extractTagsFromCard', () => {
     expect(extractTagsFromCard({ tags: [{ Name: 'TICKET FECHADO' }] })).toEqual([
       'TICKET FECHADO',
     ]);
+  });
+
+  it('resolves tag ids using board tag map', () => {
+    const map = buildTagNameMap([{ Id: 77163, Name: 'EMAILS FORE' }]);
+    expect(extractTagsFromCard({ TagIds: [77163] }, map)).toEqual(['EMAILS FORE']);
   });
 });
 
@@ -36,13 +43,24 @@ describe('mapDragCardToRow', () => {
 describe('filterCardsByDate', () => {
   const cards = [
     { DragTaskId: 1, CreatedAt: '2026-04-05T12:00:00.000Z' },
-    { DragTaskId: 2, CreatedAt: '2026-03-20T12:00:00.000Z' },
+    { DragTaskId: 2, CreatedAt: '2026-03-20T12:00:00.000Z', UpdatedAt: '2026-04-10T12:00:00.000Z' },
   ];
 
-  it('filters by start and end date', () => {
+  it('filters by any activity date in range', () => {
     const filtered = filterCardsByDate(cards, '2026-04-01', '2026-04-30');
-    expect(filtered).toHaveLength(1);
-    expect(filtered[0].DragTaskId).toBe(1);
+    expect(filtered).toHaveLength(2);
+  });
+
+  it('returns all cards when no dates provided', () => {
+    expect(filterCardsByDate(cards, '', '')).toHaveLength(2);
+  });
+});
+
+describe('flattenCardDetail', () => {
+  it('unwraps nested Card object', () => {
+    const flat = flattenCardDetail({ Card: { TaskName: 'Teste', Tags: ['BUG'] } });
+    expect(flat.TaskName).toBe('Teste');
+    expect(flat.Tags).toEqual(['BUG']);
   });
 });
 

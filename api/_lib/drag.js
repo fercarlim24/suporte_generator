@@ -1,10 +1,13 @@
 import {
   cardNeedsTagEnrichment,
+  countCardsWithTags,
   filterCardsByDate,
+  flattenCardDetail,
   formatDragPeriod,
   mapDragCardToRow,
   normalizeBoard,
   normalizeColumn,
+  buildTagNameMap,
 } from '../../src/lib/drag-map.js';
 
 const DRAG_API_BASE = 'https://app.dragapp.com/v2';
@@ -66,13 +69,13 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function enrichCardsWithTags(cards, { onProgress } = {}) {
-  const needs = cards.filter(cardNeedsTagEnrichment);
+async function enrichCardsWithTags(cards, tagNameMap, { onProgress } = {}) {
+  const needs = cards.filter((card) => cardNeedsTagEnrichment(card, tagNameMap));
   if (!needs.length) return cards;
 
   const byId = new Map(cards.map((card) => [card.DragTaskId ?? card.id, card]));
-  const batchSize = 3;
-  const delayMs = 700;
+  const batchSize = 5;
+  const delayMs = 550;
 
   for (let i = 0; i < needs.length; i += batchSize) {
     const batch = needs.slice(i, i + batchSize);
@@ -80,7 +83,8 @@ async function enrichCardsWithTags(cards, { onProgress } = {}) {
       batch.map(async (card) => {
         const id = card.DragTaskId ?? card.id;
         try {
-          return await dragFetch(`/card/${id}`);
+          const detail = await dragFetch(`/card/${id}`);
+          return flattenCardDetail(detail);
         } catch {
           return card;
         }
@@ -122,6 +126,11 @@ export async function listColumns(boardId) {
   return asArray(data).map(normalizeColumn);
 }
 
+export async function listBoardTags(boardId) {
+  const data = await dragFetch(`/tag?BoardId=${encodeURIComponent(boardId)}`);
+  return asArray(data);
+}
+
 export async function listCardsInColumn(boardId, columnId) {
   const data = await dragFetch(`/board/${boardId}/column/${columnId}/cards`);
   return asArray(data);
@@ -131,6 +140,8 @@ export async function exportBoardCards(boardId, options = {}) {
   const { startDate, endDate, enrichTags = true, onProgress } = options;
   const board = await getBoard(boardId);
   const columns = await listColumns(boardId);
+  const boardTags = await listBoardTags(boardId).catch(() => []);
+  const tagNameMap = buildTagNameMap(boardTags);
 
   let cards = [];
   for (const column of columns) {
@@ -151,24 +162,39 @@ export async function exportBoardCards(boardId, options = {}) {
     const id = card.DragTaskId ?? card.id;
     if (id != null) unique.set(id, card);
   });
-  cards = Array.from(unique.values());
+  const cardsRaw = Array.from(unique.values());
+  cards = cardsRaw;
 
-  cards = filterCardsByDate(cards, startDate, endDate);
+  if (startDate || endDate) {
+    cards = filterCardsByDate(cards, startDate, endDate);
+  }
 
-  if (enrichTags && cards.some(cardNeedsTagEnrichment)) {
-    cards = await enrichCardsWithTags(cards, {
+  if (enrichTags && cards.some((card) => cardNeedsTagEnrichment(card, tagNameMap))) {
+    cards = await enrichCardsWithTags(cards, tagNameMap, {
       onProgress: (p) => onProgress?.({ phase: 'tags', ...p }),
     });
   }
 
-  const rows = cards.map(mapDragCardToRow).filter((row) => row['CARD NAME']);
+  const rows = cards.map((card) => mapDragCardToRow(card, tagNameMap)).filter((row) => row['CARD NAME']);
+  const cardsWithTags = countCardsWithTags(cards, tagNameMap);
 
-  const period = formatDragPeriod(startDate, endDate);
+  const period =
+    startDate || endDate
+      ? formatDragPeriod(startDate, endDate)
+      : `Todos os cards — ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`;
 
   return {
     board,
     columns,
     rows,
+    stats: {
+      columns: columns.length,
+      cardsRaw: cardsRaw.length,
+      cardsAfterDateFilter: cards.length,
+      cardsWithTags,
+      cardsExported: rows.length,
+      boardTags: boardTags.length,
+    },
     meta: {
       board: board.name,
       period,
