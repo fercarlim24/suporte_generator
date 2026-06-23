@@ -9,7 +9,20 @@ export const NOISE = new Set([
   'EMAILS FORE', 'FORE', 'EM ANDAMENTO', 'TICKET FECHADO',
   '✨ RESOLVED', '✨ ACTION REQUIRED', '✨ AWAITING RESPONSE', '✨ FYI',
   'BUG', 'AJUSTES', 'ATUALIZAÇÃO', 'INTERNO',
+  'EMAILS', 'NOTIFICAÇÃO', 'NOTIFICACAO', 'NOTIFICAÇÕES', 'NOTIFICACOES',
 ]);
+
+/** Tags que identificam emails automáticos / notificações (fora da análise de chamados) */
+export const NOTIFICATION_EMAIL_TAGS = new Set([
+  'EMAILS FORE',
+  'EMAILS',
+  'NOTIFICAÇÃO',
+  'NOTIFICACAO',
+  'NOTIFICAÇÕES',
+  'NOTIFICACOES',
+]);
+
+export const CLOSED_TICKET_TAG = 'TICKET FECHADO';
 
 export const OP_SP = [
   ['Sprint 14', '16/12'], ['Sprint 15', '06/01'], ['Sprint 16', '20/01'],

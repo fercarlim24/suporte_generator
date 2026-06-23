@@ -1,4 +1,4 @@
-import { NOISE } from './config.js';
+import { CLOSED_TICKET_TAG, NOISE, NOTIFICATION_EMAIL_TAGS } from './config.js';
 import { extractReportMonthFromDragMeta, reportMonthLabel } from './report-period.js';
 import {
   escapeHtml,
@@ -31,6 +31,18 @@ export function parseTags(raw) {
     .split(/[,;\n\r]+/)
     .map((t) => t.trim().toUpperCase())
     .filter(Boolean);
+}
+
+/** Card de email/notificação automática — não entra na análise de chamados */
+export function isNotificationEmailCard({ tags, name = '' }) {
+  if (!tags?.length) return false;
+  if (tags.some((t) => NOTIFICATION_EMAIL_TAGS.has(t) || /^EMAILS\b/.test(t))) return true;
+  if (tags.includes('✨ FYI') && /notifica|notification|no-reply|automati/i.test(name)) return true;
+  return false;
+}
+
+export function isClosedTicket(tags) {
+  return tags.includes(CLOSED_TICKET_TAG);
 }
 
 function extractEmails(raw) {
@@ -147,15 +159,17 @@ export function processSuporteRows(data) {
     tags: parseTags(getTagsRaw(r)),
   }));
 
-  const foreEmails = enriched.filter((e) => e.tags.includes('EMAILS FORE'));
+  const notifications = enriched.filter((e) => isNotificationEmailCard(e));
+  const foreEmails = notifications.filter((e) => e.tags.includes('EMAILS FORE'));
   const foreTickets = enriched.filter(
-    (e) => e.tags.includes('FORE') && !e.tags.includes('EMAILS FORE'),
+    (e) =>
+      !isNotificationEmailCard(e) &&
+      e.tags.includes('FORE'),
   );
-  const realTickets = enriched.filter((e) => !e.tags.includes('EMAILS FORE'));
+  const realTickets = enriched.filter((e) => !isNotificationEmailCard(e));
   const bugs = realTickets.filter((e) => e.tags.includes('BUG'));
-  const closed = realTickets.filter(
-    (e) => e.tags.includes('TICKET FECHADO') || e.tags.includes('✨ RESOLVED'),
-  );
+  const closed = realTickets.filter((e) => isClosedTicket(e.tags));
+  const openTickets = realTickets.length - closed.length;
   const actionRequired = realTickets.filter((e) => e.tags.includes('✨ ACTION REQUIRED'));
   const awaiting = realTickets.filter((e) => e.tags.includes('✨ AWAITING RESPONSE'));
   const inProgress = realTickets.filter((e) => e.tags.includes('EM ANDAMENTO'));
@@ -222,11 +236,13 @@ export function processSuporteRows(data) {
 
   const result = {
     total,
+    notifications: notifications.length,
     foreEmails: foreEmails.length,
     foreTickets: foreTickets.length,
     realTickets: realTickets.length,
     bugs: bugs.map((e) => ({ name: e.name })),
     closed: closed.length,
+    openTickets,
     actionRequired: actionRequired.length,
     awaiting: awaiting.length,
     inProgress: inProgress.length,
@@ -270,19 +286,19 @@ export function renderSuporteReport(d, meta = buildSuporteMeta()) {
   const closedPct = d.realTickets ? Math.round((d.closed / d.realTickets) * 100) : 0;
 
   document.getElementById('rptMetrics').innerHTML = `
-    <div class="metric"><div class="metric-label">Total de cards</div><div class="metric-value">${d.total}</div><div class="metric-sub">incl. notificações FORE</div></div>
-    <div class="metric"><div class="metric-label">Tickets reais</div><div class="metric-value">${d.realTickets}</div><div class="metric-sub">excl. EMAILS FORE</div></div>
-    <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value">${d.closed}</div><div class="metric-sub">${closedPct}% de resolução</div></div>
-    <div class="metric"><div class="metric-label">Bugs</div><div class="metric-value">${d.bugs.length}</div><div class="metric-sub">reportados no período</div></div>
+    <div class="metric"><div class="metric-label">Total de cards</div><div class="metric-value">${d.total}</div><div class="metric-sub">export completo</div></div>
+    <div class="metric"><div class="metric-label">Chamados</div><div class="metric-value">${d.realTickets}</div><div class="metric-sub">excl. ${d.notifications} notificações</div></div>
+    <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value">${d.closed}</div><div class="metric-sub">${closedPct}% com TICKET FECHADO</div></div>
+    <div class="metric"><div class="metric-label">Em aberto</div><div class="metric-value">${d.openTickets}</div><div class="metric-sub">sem TICKET FECHADO</div></div>
   `;
 
   document.getElementById('rptFore').innerHTML = `
-    <div class="rpt-card-title"><span class="dot dot-orange"></span>FORE</div>
+    <div class="rpt-card-title"><span class="dot dot-orange"></span>Notificações e FORE</div>
     <div class="fore-metrics">
-      <div class="fore-metric"><div class="fore-label">Emails FORE</div><div class="fore-value">${d.foreEmails}</div><div class="fore-sub">notificações automáticas</div></div>
-      <div class="fore-metric"><div class="fore-label">Tickets FORE</div><div class="fore-value">${d.foreTickets}</div><div class="fore-sub">chamados reais</div></div>
-      <div class="fore-metric"><div class="fore-label">Total FORE</div><div class="fore-value">${d.foreEmails + d.foreTickets}</div><div class="fore-sub">do total de ${d.total}</div></div>
-      <div class="fore-note">Os emails FORE são notificações automáticas do sistema de pagamentos e não representam chamados de suporte. Os ${d.foreTickets} tickets FORE são interações reais com o time.</div>
+      <div class="fore-metric"><div class="fore-label">Notificações</div><div class="fore-value">${d.notifications}</div><div class="fore-sub">emails automáticos (fora dos chamados)</div></div>
+      <div class="fore-metric"><div class="fore-label">Emails FORE</div><div class="fore-value">${d.foreEmails}</div><div class="fore-sub">tag EMAILS FORE</div></div>
+      <div class="fore-metric"><div class="fore-label">Tickets FORE</div><div class="fore-value">${d.foreTickets}</div><div class="fore-sub">chamados reais FORE</div></div>
+      <div class="fore-note">Notificações automáticas não entram no total de chamados nem na taxa de fechamento. A taxa de sucesso considera apenas cards com a tag <strong>TICKET FECHADO</strong>.</div>
     </div>
   `;
 
@@ -295,10 +311,12 @@ export function renderSuporteReport(d, meta = buildSuporteMeta()) {
 
   const statusHTML = `
     <div class="status-pills">
-      <span class="pill pill-green">${d.closed} Fechados</span>
+      <span class="pill pill-green">${d.closed} TICKET FECHADO</span>
+      <span class="pill pill-gray">${d.openTickets} Em aberto</span>
       <span class="pill pill-orange">${d.actionRequired} Action required</span>
       <span class="pill pill-gray">${d.awaiting} Awaiting response</span>
       <span class="pill pill-gray">${d.inProgress} Em andamento</span>
+      <span class="pill pill-red">${d.bugs.length} Bugs</span>
     </div>
   `;
 
@@ -341,7 +359,7 @@ export function renderSuporteReport(d, meta = buildSuporteMeta()) {
   document.getElementById('rptObs').innerHTML = `
     <div class="rpt-card-title"><span class="dot dot-purple"></span>Observações</div>
     <div class="obs-item"><span class="obs-tag pill-orange" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">Atenção</span><span class="obs-text">Revise os tickets de <strong>Action required</strong> em aberto.</span></div>
-    <div class="obs-item"><span class="obs-tag pill-green" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">Positivo</span><span class="obs-text">Taxa de resolução de <strong>${closedPct}%</strong> no período.</span></div>
+    <div class="obs-item"><span class="obs-tag pill-green" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">Positivo</span><span class="obs-text">Taxa de fechamento (<strong>TICKET FECHADO</strong>) de <strong>${closedPct}%</strong> sobre ${d.realTickets} chamados.</span></div>
     <div class="obs-item"><span class="obs-tag pill-gray">Contato</span><span class="obs-text"><strong>${d.uniqueContacts || 0}</strong> usuários únicos entraram em contato no período.</span></div>
     <div class="insights-block">
       <div class="insights-title">Ambiente × tipo de problema</div>
@@ -388,17 +406,17 @@ export function buildSuportePreviewHtml(d, meta) {
       </div>
       <div class="metrics">
         <div class="metric"><div class="metric-label">Total de cards</div><div class="metric-value">${d.total}</div></div>
-        <div class="metric"><div class="metric-label">Tickets reais</div><div class="metric-value">${d.realTickets}</div></div>
-        <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value">${d.closed}</div><div class="metric-sub">${closedPct}%</div></div>
+        <div class="metric"><div class="metric-label">Chamados</div><div class="metric-value">${d.realTickets}</div><div class="metric-sub">excl. ${d.notifications} notif.</div></div>
+        <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value">${d.closed}</div><div class="metric-sub">${closedPct}% TICKET FECHADO</div></div>
         <div class="metric"><div class="metric-label">Bugs</div><div class="metric-value">${d.bugs.length}</div></div>
       </div>
-      <div class="fore-wrap"><div class="rpt-card-title">FORE</div><p style="font-size:12px;color:#666;">Emails: ${d.foreEmails} · Tickets: ${d.foreTickets}</p></div>
+      <div class="fore-wrap"><div class="rpt-card-title">Notificações</div><p style="font-size:12px;color:#666;">${d.notifications} fora dos chamados · FORE: ${d.foreEmails} emails · ${d.foreTickets} tickets</p></div>
       <div class="two-col">
         <div class="rpt-card"><div class="rpt-card-title">Categorias</div>${catBars}</div>
         <div class="rpt-card"><div class="rpt-card-title">Status</div>
           <div class="status-pills">
-            <span class="pill pill-green">${d.closed} Fechados</span>
-            <span class="pill pill-orange">${d.actionRequired} Action required</span>
+            <span class="pill pill-green">${d.closed} TICKET FECHADO</span>
+            <span class="pill pill-gray">${d.openTickets} Em aberto</span>
           </div>
         </div>
       </div>

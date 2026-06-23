@@ -71,7 +71,7 @@ function renderTable(rows) {
           <th>Relatórios</th>
           <th>Tickets</th>
           <th>Fechados</th>
-          <th>Resolução</th>
+          <th>Fechamento</th>
           <th>Bugs</th>
           <th>Usuários únicos</th>
         </tr>
