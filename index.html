@@ -70,9 +70,9 @@
       <div class="hub-card-hdr green">Dev</div>
       <div class="hub-card-body">
         <div class="hub-card-name">Horas de desenvolvimento</div>
-        <div class="hub-card-desc">Lançamento manual de horas na ferramenta, com breakdown por semana, sistema (OS2/FORE) e categoria.</div>
+        <div class="hub-card-desc">Cole o bloco semanal de horas ou lance manualmente — breakdown por semana, sistema e categoria.</div>
         <div class="hub-card-tags">
-          <span class="tag">Input manual</span>
+          <span class="tag">Colar bloco</span>
           <span class="tag">OS2 · FORE</span>
           <span class="tag">Semanas</span>
           <span class="tag">Exportar PDF</span>
@@ -329,6 +329,27 @@
         <button type="button" class="rpt-btn" id="h-clear-draft">Limpar</button>
         <button type="button" class="rpt-btn" id="h-load-demo">Demo</button>
         <button type="button" class="rpt-btn primary" id="h-generate-report">Gerar relatório →</button>
+      </div>
+    </div>
+
+    <div class="h-paste-panel">
+      <div class="h-paste-head">
+        <div>
+          <div class="h-paste-title">Colar bloco de horas</div>
+          <div class="h-paste-hint">Cole o texto que você recebe (Semana N + linhas <code>4h - descrição</code>). O sistema separa por semana e categoriza automaticamente.</div>
+        </div>
+        <label class="h-paste-replace-label">
+          <input type="checkbox" id="h-paste-replace">
+          Substituir lançamentos existentes
+        </label>
+      </div>
+      <textarea id="h-paste-input" class="h-paste-input" rows="8" placeholder="Semana 1 (01 de junho até 05 de junho) - Total de horas: 21h25min
+
+4h - Ajuste de verbas
+1h - Investigação de integração com moeda
+10min - Call semanal 01/06"></textarea>
+      <div class="h-paste-actions">
+        <button type="button" class="rpt-btn primary" id="h-paste-import">Importar para a tabela →</button>
       </div>
     </div>
 

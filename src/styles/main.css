@@ -342,6 +342,15 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
 .h-row-remove:hover { background:#fef2f2; }
 .h-editor-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; font-size:11px; color:#888; flex-wrap:wrap; }
 
+.h-paste-panel { margin-bottom:16px; padding:16px; background:white; border:1px solid #e2e8f0; border-radius:10px; }
+.h-paste-head { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.h-paste-title { font-size:13px; font-weight:600; color:#222; margin-bottom:4px; }
+.h-paste-hint { font-size:11px; color:#888; line-height:1.5; max-width:560px; }
+.h-paste-replace-label { display:flex; align-items:center; gap:6px; font-size:11px; color:#666; cursor:pointer; white-space:nowrap; }
+.h-paste-input { width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:12px; font-size:12px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; line-height:1.55; color:#333; resize:vertical; min-height:140px; box-sizing:border-box; }
+.h-paste-input:focus { outline:none; border-color:#a78bfa; box-shadow:0 0 0 2px rgba(139,92,246,.12); }
+.h-paste-actions { display:flex; justify-content:flex-end; margin-top:10px; }
+
 /* ════════════════════════════════════════════
    SCREEN ANALYTICS — SUPPORT EVOLUTION
 ════════════════════════════════════════════ */

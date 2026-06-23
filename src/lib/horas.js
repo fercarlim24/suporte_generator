@@ -1,4 +1,5 @@
 import { CAT_COLORS, CAT_ORDER, HORAS_DRAFT_KEY } from './config.js';
+import { parseHorasPasteBlock } from './horas-paste.js';
 import { reportMonthLabel } from './report-period.js';
 import {
   escapeHtml,
@@ -119,6 +120,59 @@ export function getHorasReportMonth() {
 
 function blankEntry() {
   return normalizeHorasDraftEntry({ sem: '1', sis: 'OS2', cat: CAT_ORDER[0], timeStr: '', desc: '' });
+}
+
+export function importHorasPaste(text, options = {}) {
+  const { replace = false } = options;
+  const parsed = parseHorasPasteBlock(text, {
+    refDate: hReportMonth ? new Date(`${hReportMonth}-15`) : new Date(),
+  });
+
+  if (!parsed.entries.length) {
+    return { ok: false, message: 'Nenhum lançamento reconhecido. Use linhas como: 4h - Descrição da tarefa' };
+  }
+
+  if (parsed.reportMonth) {
+    hReportMonth = parsed.reportMonth;
+    const monthInput = document.getElementById('h-month-input');
+    if (monthInput) monthInput.value = hReportMonth;
+  }
+
+  const imported = parsed.entries.map((e) => normalizeHorasDraftEntry(e));
+  const hasContent = hDraftEntries.some((e) => parseTime(e.timeStr) > 0);
+
+  if (replace || !hasContent) {
+    hDraftEntries = imported;
+  } else {
+    hDraftEntries = [...hDraftEntries.filter((e) => parseTime(e.timeStr) > 0), ...imported];
+  }
+
+  renderHorasEditor();
+  scheduleDraftSave();
+
+  const skippedNote = parsed.skipped.length ? ` · ${parsed.skipped.length} linha(s) ignorada(s)` : '';
+  return {
+    ok: true,
+    message: `${imported.length} lançamento(s) importado(s)${skippedNote}`,
+    count: imported.length,
+  };
+}
+
+export function handleHorasPasteImport() {
+  const textarea = document.getElementById('h-paste-input');
+  const replace = document.getElementById('h-paste-replace')?.checked;
+  const text = textarea?.value || '';
+  if (!text.trim()) {
+    showToast('Cole o bloco de horas antes de importar');
+    return;
+  }
+  const result = importHorasPaste(text, { replace });
+  if (!result.ok) {
+    alert(result.message);
+    return;
+  }
+  showToast(`✓ ${result.message}`);
+  if (textarea) textarea.value = '';
 }
 
 export function addHorasDraftRow() {
@@ -455,6 +509,7 @@ export function initHoras() {
   document.getElementById('h-generate-report')?.addEventListener('click', generateHorasReport);
   document.getElementById('h-clear-draft')?.addEventListener('click', clearHorasDraft);
   document.getElementById('h-load-demo')?.addEventListener('click', loadHorasDemo);
+  document.getElementById('h-paste-import')?.addEventListener('click', handleHorasPasteImport);
 
   showHorasEditor();
 }
