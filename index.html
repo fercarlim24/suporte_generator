@@ -17,91 +17,59 @@
   <div class="app-loading-msg">Processando…</div>
 </div>
 
-<div id="screen-hub" class="screen active">
-  <div class="hub-logo">Landscape<span>OS 2</span></div>
-  <h1 class="hub-title">Product Tools</h1>
-  <p class="hub-sub">Selecione a ferramenta que você quer usar</p>
-
-  <div class="hub-cards">
-
-    <div class="hub-card" data-go="suporte">
-      <div class="hub-card-hdr purple">Suporte</div>
-      <div class="hub-card-body">
-        <div class="hub-card-name">Relatório mensal</div>
-        <div class="hub-card-desc">Upload do CSV exportado pelo Drag.app e geração automática do relatório com métricas de tickets, FORE e bugs.</div>
-        <div class="hub-card-tags">
-          <span class="tag">Drag.app CSV</span>
-          <span class="tag">FORE</span>
-          <span class="tag">Tickets</span>
-          <span class="tag">Exportar PDF</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="hub-card" data-go="op">
-      <div class="hub-card-hdr orange">Produto</div>
-      <div class="hub-card-body">
-        <div class="hub-card-name">One Pager semanal</div>
-        <div class="hub-card-desc">Relatório visual de produto com entregas, resumo executivo, status geral, próximos passos e roadmap por sprints.</div>
-        <div class="hub-card-tags">
-          <span class="tag">Roadmap</span>
-          <span class="tag">Status RAG</span>
-          <span class="tag">Stakeholders</span>
-          <span class="tag">Exportar PDF</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="hub-card" data-go="horas">
-      <div class="hub-card-hdr green">Dev</div>
-      <div class="hub-card-body">
-        <div class="hub-card-name">Horas de desenvolvimento</div>
-        <div class="hub-card-desc">Lançamento manual de horas na ferramenta, com breakdown por semana, sistema (OS2/FORE) e categoria.</div>
-        <div class="hub-card-tags">
-          <span class="tag">Input manual</span>
-          <span class="tag">OS2 · FORE</span>
-          <span class="tag">Semanas</span>
-          <span class="tag">Exportar PDF</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="hub-card" data-go="hist">
-      <div class="hub-card-hdr blue">Histórico</div>
-      <div class="hub-card-body">
-        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px;">
-          <div class="hub-card-name">Relatórios salvos</div>
-          <div id="hub-hist-count" style="font-size:11px;color:var(--muted);"></div>
-        </div>
-        <div class="hub-card-desc">Consulte, visualize e exporte em PDF todos os relatórios gerados anteriormente — suporte, horas e one pager.</div>
-        <div class="hub-card-tags">
-          <span class="tag">Suporte</span>
-          <span class="tag">Horas</span>
-          <span class="tag">One Pager</span>
-          <span class="tag">Exportar PDF</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="hub-card" data-go="analytics">
-      <div class="hub-card-hdr blue">BI</div>
-      <div class="hub-card-body">
-        <div class="hub-card-name">Product Pulse</div>
-        <div class="hub-card-desc">Cruza suporte (CSV manual), horas, one pager, Google Analytics e Metabase. Com a nuvem off, mostra o histórico local e deixa GA/Metabase vazios.</div>
-        <div class="hub-card-tags">
-          <span class="tag">Pulse</span>
-          <span class="tag">Suporte</span>
-          <span class="tag">Horas</span>
-          <span class="tag">GA</span>
-          <span class="tag">Metabase</span>
-        </div>
-      </div>
-    </div>
-
+<div id="screen-select" class="screen">
+  <div class="select-top">
+    <div class="brand">Product Tools</div>
+    <div class="brand-meta">LandscapeOS 2 · uso interno</div>
   </div>
-  <div class="hub-footer">LANDSCAPEOS 2 — USE INTERNO</div>
+  <div class="select-copy">
+    <h1>Qual produto você quer analisar?</h1>
+    <p class="sub">Você pode trocar a qualquer momento.</p>
+  </div>
+  <div class="product-grid">
+    <button type="button" class="product-card" id="product-os2">
+      <strong>OS2</strong>
+      <i class="ph ph-arrow-right" aria-hidden="true"></i>
+    </button>
+    <button type="button" class="product-card" id="product-fore">
+      <strong>FORE</strong>
+      <i class="ph ph-arrow-right" aria-hidden="true"></i>
+    </button>
+  </div>
 </div>
-<div id="screen-suporte" class="screen">
+
+<div id="app-shell" class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">Product Tools</div>
+    <button type="button" class="product-switch" id="btn-switch-product">
+      <span>
+        <small>PRODUTO</small>
+        <strong id="sidebar-product">OS2</strong>
+      </span>
+      <span>⇄ Trocar</span>
+    </button>
+    <nav>
+      <div class="nav-group">
+        <div class="nav-label">Visão geral</div>
+        <button type="button" class="nav-item" data-nav="inicio"><i class="ph ph-house" aria-hidden="true"></i> Início</button>
+        <button type="button" class="nav-item" data-nav="pulse"><i class="ph ph-pulse" aria-hidden="true"></i> Product Pulse</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Gerar</div>
+        <button type="button" class="nav-item" data-nav="suporte"><i class="ph ph-ticket" aria-hidden="true"></i> Suporte</button>
+        <button type="button" class="nav-item" data-nav="horas"><i class="ph ph-clock" aria-hidden="true"></i> Horas <span id="nav-badge-horas" class="nav-badge" hidden></span></button>
+        <button type="button" class="nav-item" data-nav="op"><i class="ph ph-file-text" aria-hidden="true"></i> One Pager <span id="nav-badge-op" class="nav-badge" hidden></span></button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Consultar</div>
+        <button type="button" class="nav-item" data-nav="hist"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Histórico</button>
+      </div>
+    </nav>
+    <div id="sync-indicator" class="sync-indicator local">● Somente local · Esta versão não tem nuvem. Os dados ficam só neste navegador.</div>
+  </aside>
+  <main class="workspace">
+    <section id="view-inicio" class="view"></section>
+<div id="screen-suporte" class="view">
   <div class="topbar">
     <button class="back-btn" id="btn-back-hub-suporte" data-go="hub">← Voltar</button>
     <div class="topbar-sep"></div>
@@ -169,7 +137,7 @@
     </div>
   </div>
 </div>
-<div id="screen-op" class="screen">
+<div id="screen-op" class="view">
   <div class="topbar">
     <button class="back-btn np" data-go="hub">← Voltar</button>
     <div class="topbar-sep np"></div>
@@ -289,7 +257,7 @@
 
   </div>
 </div>
-<div id="screen-horas" class="screen">
+<div id="screen-horas" class="view">
   <div class="topbar">
     <button class="back-btn" data-go="hub">← Voltar</button>
     <div class="topbar-sep"></div>
@@ -383,7 +351,7 @@
     </div>
   </div>
 </div>
-<div id="screen-analytics" class="screen">
+<div id="screen-analytics" class="view">
   <div class="topbar">
     <button class="back-btn" data-go="hub">← Voltar</button>
     <div class="topbar-sep"></div>
@@ -435,7 +403,7 @@
     <div id="pulse-panel"></div>
   </div>
 </div>
-<div id="screen-hist" class="screen">
+<div id="screen-hist" class="view">
   <div class="topbar">
     <button class="back-btn" id="btn-hist-back-hub" data-go="hub">← Voltar</button>
     <div class="topbar-sep"></div>
@@ -467,6 +435,9 @@
       <div id="h-hist-preview-content"></div>
     </div>
   </div>
+</div>
+
+  </main>
 </div>
 
 <div id="print-frame"></div>

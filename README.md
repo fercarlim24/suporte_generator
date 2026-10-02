@@ -2,6 +2,8 @@
 
 Gerador de relatórios internos do **LandscapeOS 2** (suporte, horas de desenvolvimento e one pager de produto).
 
+A entrada é a **seleção de produto** (OS2 ou FORE). Com um produto escolhido, a sidebar abre Início, Product Pulse, os geradores e o Histórico. O estado `{ product, period, screen, pulseTab }` fica em `localStorage` e a rota é o hash (`#/OS2/inicio`, `#/FORE/pulse/uso`, …).
+
 ## Ferramentas
 
 - **Suporte** — CSV do Drag.app (Reports → Tags ou Daily Cards)

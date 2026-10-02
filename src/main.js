@@ -12,6 +12,7 @@ import {
   getHistListFilter,
 } from './lib/history.js';
 import { initAnalytics, openAnalyticsScreen } from './lib/analytics.js';
+import { goTo, renderSync, startShell } from './lib/shell.js';
 import { initSuporte, resetSuporteView } from './lib/suporte.js';
 import { initHoras, showHorasEditor } from './lib/horas.js';
 import {
@@ -20,25 +21,7 @@ import {
   opAddItem,
 } from './lib/op.js';
 
-const SCREEN_MAP = {
-  hub: 'screen-hub',
-  suporte: 'screen-suporte',
-  op: 'screen-op',
-  horas: 'screen-horas',
-  hist: 'screen-hist',
-  analytics: 'screen-analytics',
-};
-
-export function goTo(id) {
-  document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
-  const el = document.getElementById(SCREEN_MAP[id] || 'screen-hub');
-  if (el) {
-    el.classList.add('active');
-    window.scrollTo(0, 0);
-  }
-  if (id === 'hist') openHistoryScreen();
-  if (id === 'analytics') openAnalyticsScreen();
-}
+export { goTo };
 
 function bindHub() {
   document.querySelectorAll('[data-go]').forEach((el) => {
@@ -89,8 +72,13 @@ function boot() {
   initSuporte();
   initHoras();
   initOp();
-  initHistory();
+  initHistory().finally(() => renderSync());
   initAnalytics();
+  startShell((state) => {
+    window.scrollTo(0, 0);
+    if (state.screen === 'hist') openHistoryScreen();
+    if (state.screen === 'pulse') openAnalyticsScreen();
+  });
 
   const opData = document.getElementById('op-data');
   if (opData && !opData.value) {
