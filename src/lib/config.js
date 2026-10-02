@@ -32,10 +32,10 @@ export const OP_SP = [
 export const OP_SK = ['esc', 'rm', 'rec', 'ri', 'cu'];
 export const OP_SL = ['ESCOPO', 'ROADMAP', 'RECURSOS', 'RISCO', 'CUSTO'];
 export const OP_SC = [
-  'linear-gradient(135deg,#15803d,#4ade80)',
-  'linear-gradient(135deg,#c2410c,#fb923c)',
-  'linear-gradient(135deg,#991b1b,#f87171)',
-  'rgba(255,255,255,.15)',
+  'var(--terminal)',
+  'var(--color-text)',
+  'var(--color-accent)',
+  'var(--muted)',
 ];
 export const OP_FIELDS = [
   'produto', 'stakeholder', 'data', 'entregas', 'resumo', 'equipe',
@@ -44,11 +44,11 @@ export const OP_FIELDS = [
 
 export const CAT_ORDER = ['NOVA FEATURE', 'SUPORTE', 'BUG', 'CALL', 'ROTINA'];
 export const CAT_COLORS = {
-  'NOVA FEATURE': { bar: '#4ade80', cls: 'cat-nova' },
-  SUPORTE: { bar: '#fb923c', cls: 'cat-suporte' },
-  BUG: { bar: '#f87171', cls: 'cat-bug' },
-  CALL: { bar: '#60a5fa', cls: 'cat-call' },
-  ROTINA: { bar: '#a78bfa', cls: 'cat-rotina' },
+  'NOVA FEATURE': { bar: 'var(--color-text)', cls: 'cat-nova' },
+  SUPORTE: { bar: 'var(--color-neutral-400)', cls: 'cat-suporte' },
+  BUG: { bar: 'var(--color-accent)', cls: 'cat-bug' },
+  CALL: { bar: 'var(--color-text)', cls: 'cat-call' },
+  ROTINA: { bar: 'var(--color-neutral-500)', cls: 'cat-rotina' },
 };
 
 export const REPORT_LABELS = {

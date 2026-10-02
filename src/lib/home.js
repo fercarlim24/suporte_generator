@@ -105,7 +105,7 @@ function kpiCard(label, value, sub) {
   const card = node('article', 'card');
   card.append(node('div', 'kpi-label', label));
   const missing = value == null;
-  card.append(node('div', missing ? 'kpi-value missing' : 'kpi-value', missing ? '—' : String(value)));
+  card.append(node('div', missing ? 'kpi-value missing' : 'kpi-value', missing ? 'ND' : String(value)));
   card.append(node('div', 'kpi-sub', sub));
   return card;
 }

@@ -355,8 +355,8 @@ export function renderHorasReport() {
 
   document.getElementById('h-metrics').innerHTML = `
     <div class="metric"><div class="metric-label">Total horas mês</div><div class="metric-value time-val">${fmtTime(totalMins)}</div><div class="metric-sub">${rows.length} lançamentos</div></div>
-    <div class="metric"><div class="metric-label">OS2</div><div class="metric-value time-val" style="color:#3730a3">${fmtTime(os2Mins)}</div><div class="metric-sub">${Math.round((os2Mins / totalMins) * 100) || 0}% do total</div></div>
-    <div class="metric"><div class="metric-label">FORE</div><div class="metric-value time-val" style="color:#854d0e">${fmtTime(foreMins)}</div><div class="metric-sub">${Math.round((foreMins / totalMins) * 100) || 0}% do total</div></div>
+    <div class="metric"><div class="metric-label">OS2</div><div class="metric-value time-val">${fmtTime(os2Mins)}</div><div class="metric-sub">${Math.round((os2Mins / totalMins) * 100) || 0}% do total</div></div>
+    <div class="metric"><div class="metric-label">FORE</div><div class="metric-value time-val">${fmtTime(foreMins)}</div><div class="metric-sub">${Math.round((foreMins / totalMins) * 100) || 0}% do total</div></div>
     <div class="metric"><div class="metric-label">Semanas</div><div class="metric-value">${semanas.length}</div><div class="metric-sub">${semanas.map((s) => 'S' + s).join(' · ')}</div></div>
   `;
 
@@ -379,7 +379,7 @@ export function renderHorasReport() {
   </tr>`);
 
   document.getElementById('h-week-table').innerHTML = `
-    <div class="rpt-card-title"><span class="dot" style="background:#60a5fa;width:8px;height:8px;border-radius:50%;display:inline-block;"></span>&nbsp;Horas por semana</div>
+    <div class="rpt-card-title"><span class="dot"></span> Horas por semana</div>
     <table class="week-table">
       <thead><tr><th>Semana</th>${sistemas.includes('OS2') ? '<th>OS2</th>' : ''}${sistemas.includes('FORE') ? '<th>FORE</th>' : ''}<th>Total</th></tr></thead>
       <tbody>${weekRows.join('')}</tbody>
@@ -398,12 +398,12 @@ export function renderHorasReport() {
       if (!known.has(r.cat) && r.cat) unk[r.cat] = (unk[r.cat] || 0) + r.mins;
     });
     Object.entries(unk).forEach(([c, m]) => cats.push({ c, m }));
-    if (!cats.length) return '<p style="font-size:12px;color:#aaa;padding:8px 0;">Sem dados.</p>';
+    if (!cats.length) return '<p class="sub">Sem dados.</p>';
     return cats
       .sort((a, b) => b.m - a.m)
       .map(({ c, m }) => {
         const pct = tot ? Math.round((m / tot) * 100) : 0;
-        const cc = CAT_COLORS[c] || { bar: '#94a3b8', cls: 'cat-other' };
+        const cc = CAT_COLORS[c] || { bar: 'var(--color-neutral-500)', cls: 'cat-other' };
         return `<div class="hcat-row">
         <span class="cat-pill ${cc.cls}">${escapeHtml(c)}</span>
         <div class="hcat-bar-wrap"><div class="hcat-bar-fill" style="width:${pct}%;background:${cc.bar};"></div></div>
@@ -418,8 +418,8 @@ export function renderHorasReport() {
       (sys) => `
     <div class="rpt-card">
       <div class="rpt-card-title">
-        <span class="dot" style="background:${sys === 'OS2' ? '#818cf8' : '#fbbf24'};width:8px;height:8px;border-radius:50%;display:inline-block;"></span>
-        &nbsp;${escapeHtml(sys)} — por categoria
+        <span class="dot"></span>
+        ${escapeHtml(sys)} / categoria
       </div>
       ${catBreakdown(sys)}
     </div>`,
@@ -450,7 +450,7 @@ export function renderHorasReport() {
     });
   });
   const sep = document.createElement('span');
-  sep.style.cssText = 'width:1px;height:16px;background:#e2e8f0;display:inline-block;margin:0 4px;';
+  sep.style.cssText = 'width:1px;height:16px;background:var(--line);display:inline-block;margin:0 4px;';
   filtersEl.appendChild(sep);
   addFilter('OS2 + FORE', hFilterSis === 'ALL', () => {
     hFilterSis = 'ALL';

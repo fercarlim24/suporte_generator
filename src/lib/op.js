@@ -208,9 +208,7 @@ export function opRenderRoadmap() {
       bar.append(label);
       const del = document.createElement('button');
       del.textContent = '✕';
-      del.className = 'np';
-      del.style.cssText =
-        'background:rgba(0,0,0,.3);border:none;border-radius:50%;width:14px;height:14px;color:rgba(255,255,255,.7);cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:4px;flex-shrink:0;padding:0;font-family:inherit;font-size:9px;line-height:1;';
+      del.className = 'np rbar-del';
       del.onclick = (e) => {
         e.stopPropagation();
         opState.items = opState.items.filter((it) => it.id !== item.id);

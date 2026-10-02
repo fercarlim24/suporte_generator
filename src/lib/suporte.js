@@ -458,7 +458,7 @@ export function renderSuporteReport(d, meta = buildSuporteMeta()) {
 
   const bugList = d.bugs.length
     ? `<ul class="bug-list">${d.bugs.map((b) => `<li class="bug-item"><span class="bug-dot"></span><span>${escapeHtml(b.name)}</span></li>`).join('')}</ul>`
-    : `<p style="font-size:12px;color:#aaa;">Nenhum bug reportado no período.</p>`;
+    : `<p class="sub">Nenhum bug reportado no período.</p>`;
   document.getElementById('rptBugs').innerHTML = `<div class="rpt-card-title"><span class="dot dot-red"></span>Bugs (${d.bugs.length})</div>${bugList}`;
 
   const envRows =
@@ -489,8 +489,8 @@ export function renderSuporteReport(d, meta = buildSuporteMeta()) {
 
   document.getElementById('rptObs').innerHTML = `
     <div class="rpt-card-title"><span class="dot dot-purple"></span>Observações</div>
-    <div class="obs-item"><span class="obs-tag pill-orange" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">Atenção</span><span class="obs-text">Revise os tickets de <strong>Action required</strong> em aberto.</span></div>
-    <div class="obs-item"><span class="obs-tag pill-green" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">Positivo</span><span class="obs-text">Taxa de fechamento (<strong>TICKET FECHADO</strong>) de <strong>${closedPct}%</strong> sobre ${d.realTickets} chamados.</span></div>
+    <div class="obs-item"><span class="obs-tag obs-alert">Atenção</span><span class="obs-text">Revise os tickets de <strong>Action required</strong> em aberto.</span></div>
+    <div class="obs-item"><span class="obs-tag obs-ok">Positivo</span><span class="obs-text">Taxa de fechamento (<strong>TICKET FECHADO</strong>) de <strong>${closedPct}%</strong> sobre ${d.realTickets} chamados.</span></div>
     <div class="obs-item"><span class="obs-tag pill-gray">Contato</span><span class="obs-text"><strong>${d.uniqueContacts || 0}</strong> usuários únicos entraram em contato no período.</span></div>
     <div class="insights-block">
       <div class="insights-title">Ambiente × tipo de problema</div>
@@ -519,9 +519,9 @@ export function buildSuportePreviewHtml(d, meta) {
     .join('');
   const bugList = d.bugs.length
     ? `<ul class="bug-list">${d.bugs.map((b) => `<li class="bug-item"><span class="bug-dot"></span><span>${escapeHtml(b.name)}</span></li>`).join('')}</ul>`
-    : `<p style="font-size:12px;color:#aaa;">Nenhum bug reportado no período.</p>`;
+    : `<p class="sub">Nenhum bug reportado no período.</p>`;
   const suggestions = d.customInsights
-    ? `<div style="white-space:pre-wrap;font-size:11px;line-height:1.6;color:#444;">${escapeHtml(d.customInsights)}</div>`
+    ? `<div style="white-space:pre-wrap;font-size:12px;line-height:1.6;color:var(--color-text);">${escapeHtml(d.customInsights)}</div>`
     : `<ul class="insights-list">${(d.suggestedAdjustments || [])
         .map((s) => `<li>${escapeHtml(s)}</li>`)
         .join('')}</ul>`;
@@ -541,7 +541,7 @@ export function buildSuportePreviewHtml(d, meta) {
         <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value">${d.closed}</div><div class="metric-sub">${closedPct}% TICKET FECHADO</div></div>
         <div class="metric"><div class="metric-label">Bugs</div><div class="metric-value">${d.bugs.length}</div></div>
       </div>
-      <div class="fore-wrap"><div class="rpt-card-title">Notificações</div><p style="font-size:12px;color:#666;">${d.notifications} fora dos chamados · FORE: ${d.foreEmails} emails · ${d.foreTickets} tickets</p></div>
+      <div class="fore-wrap"><div class="rpt-card-title">Notificações</div><p class="sub">${d.notifications} fora dos chamados · FORE: ${d.foreEmails} emails · ${d.foreTickets} tickets</p></div>
       <div class="two-col">
         <div class="rpt-card"><div class="rpt-card-title">Categorias</div>${catBars}</div>
         <div class="rpt-card"><div class="rpt-card-title">Status</div>

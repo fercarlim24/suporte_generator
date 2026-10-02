@@ -334,7 +334,7 @@ function renderEntryPreview(entry) {
     return;
   }
 
-  content.innerHTML = '<p style="padding:20px;color:#888;">Formato de relatório não suportado.</p>';
+  content.innerHTML = '<p class="sub" style="padding:20px;">Formato de relatório não suportado.</p>';
 }
 
 export function histView(id) {
@@ -366,8 +366,8 @@ export function histPrintCurrent() {
     html = tmp ? tmp.innerHTML : '';
   }
   frame.innerHTML = isDark
-    ? `<div style="font-family:'Inter',system-ui,sans-serif;font-size:12px;font-weight:300;background:#0c0f1a;color:#e2e8f0;padding:10px;">${html}</div>`
-    : `<div style="font-family:'Inter',system-ui,sans-serif;font-size:12px;background:white;color:#111;padding:32px;">${html}</div>`;
+    ? `<div style="font-family:Outfit,system-ui,sans-serif;font-size:13px;background:#14151a;color:#f2f2f4;padding:10px;">${html}</div>`
+    : `<div style="font-family:Outfit,system-ui,sans-serif;font-size:13px;background:#f4f4f5;color:#16141f;padding:32px;">${html}</div>`;
   document.body.classList.add('ph');
   window.print();
   setTimeout(() => {

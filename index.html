@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LandscapeOS 2 — Product Tools</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <link rel="stylesheet" href="/src/styles/tokens.css">
 <link rel="stylesheet" href="/src/styles/main.css">
@@ -14,7 +12,7 @@
 
 <div id="app-loading" class="app-loading" aria-live="polite" aria-busy="true">
   <div class="app-loading-spinner"></div>
-  <div class="app-loading-msg">Processando…</div>
+  <div class="app-loading-msg">Processando</div>
 </div>
 
 <div id="screen-select" class="screen">
@@ -250,7 +248,7 @@
         <button type="button" class="btn btn-ghost" id="btn-op-add-sprint">Adicionar sprint</button>
         <div class="np" style="display:flex;gap:6px;align-items:center;">
           <span style="font-size:9px;color:rgba(255,255,255,.5);font-weight:400;">Sprint atual:</span>
-          <select id="op-cur-sprint"  style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:2px 5px;color:white;font-size:10px;font-family:inherit;"></select>
+          <select id="op-cur-sprint"></select>
         </div>
       </div>
       <div class="op-card-body">
