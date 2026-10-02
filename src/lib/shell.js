@@ -12,6 +12,11 @@ const VIEW = {
 };
 
 let onScreen = () => {};
+let cloudHost = null;
+
+export function hasCloudHost() {
+  return cloudHost;
+}
 
 export function goTo(id) {
   const screen = legacyScreen(id);
@@ -96,6 +101,7 @@ export async function renderSync() {
   } catch {
     api = false;
   }
+  cloudHost = api;
   if (!api) {
     el.className = 'sync-indicator local';
     el.textContent = '● Somente local · Esta versão não tem nuvem. Os dados ficam só neste navegador.';

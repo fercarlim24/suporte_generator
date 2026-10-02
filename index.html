@@ -373,56 +373,7 @@
   </div>
 </div>
 <div id="screen-analytics" class="view">
-  <div class="topbar">
-    <button class="back-btn" data-go="hub">← Voltar</button>
-    <div class="topbar-sep"></div>
-    <span class="topbar-logo">Landscape<span>OS 2</span></span>
-    <span class="topbar-sep"></span>
-    <span class="topbar-title">Product Pulse</span>
-    <div style="margin-left:auto;display:flex;gap:8px;" class="np">
-      <button class="btn-ghost" id="btn-analytics-refresh">⟳ Atualizar</button>
-    </div>
-  </div>
-
-  <div class="analytics-wrap">
-    <div class="analytics-header">
-      <div>
-        <div class="report-logo">LandscapeOS 2 — BI</div>
-        <div class="report-title" style="font-size:28px;">Product Pulse</div>
-        <div class="report-period" id="analytics-period">Saúde do produto no período</div>
-      </div>
-    </div>
-
-    <div class="pulse-toolbar">
-      <label>De
-        <input type="month" id="pulse-from">
-      </label>
-      <label>Até
-        <input type="month" id="pulse-to">
-      </label>
-      <label>Produto
-        <select id="pulse-product">
-          <option value="ALL">ALL</option>
-          <option value="OS2">OS2</option>
-          <option value="FORE">FORE</option>
-        </select>
-      </label>
-    </div>
-
-    <p id="pulse-source-note" class="pulse-note"></p>
-    <div id="pulse-freshness" class="pulse-freshness"></div>
-    <div id="analytics-kpis" class="analytics-kpis"></div>
-
-    <div class="pulse-tabs" id="pulse-tabs">
-      <button type="button" class="pulse-tab active" data-pulse-tab="pulse">Pulse</button>
-      <button type="button" class="pulse-tab" data-pulse-tab="suporte">Suporte</button>
-      <button type="button" class="pulse-tab" data-pulse-tab="uso">Uso</button>
-      <button type="button" class="pulse-tab" data-pulse-tab="esforco">Esforço</button>
-      <button type="button" class="pulse-tab" data-pulse-tab="contas">Contas</button>
-      <button type="button" class="pulse-tab" data-pulse-tab="qualitativo">Qualitativo</button>
-    </div>
-    <div id="pulse-panel"></div>
-  </div>
+  <div id="pulse-root"></div>
 </div>
 <div id="screen-hist" class="view">
   <div class="topbar">

@@ -14,7 +14,7 @@ A entrada é a **seleção de produto** (OS2 ou FORE). Com um produto escolhido,
 
 ## Product Pulse (BI)
 
-A tela **Product Pulse** cruza o que já foi salvo. O upload de suporte continua manual; horas e one pager também. GA4 e Metabase entram por sync no servidor (stubs até as credenciais existirem).
+A tela **Product Pulse** substitui o antigo Analytics. Ela só lê relatórios já salvos — o upload de suporte continua manual, assim como horas e one pager. Sem CSV do mês, sem GA ou sem Metabase, os KPIs ficam em "—" e a faixa de frescor diz o que falta. GA4 e Metabase entram por sync no servidor (stubs até as credenciais existirem). No GitHub Pages, sem `/api/reports`, o Pulse mostra só o navegador.
 
 - Modelo → [`docs/BI_MODEL.md`](docs/BI_MODEL.md)
 - Escopo de UX → [`docs/BI_DESIGN_SCOPE.md`](docs/BI_DESIGN_SCOPE.md)
