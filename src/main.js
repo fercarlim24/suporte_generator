@@ -1,4 +1,4 @@
-import '@phosphor-icons/web/src/regular/style.css';
+import '@phosphor-icons/web/regular';
 import {
   initHistory,
   openHistoryScreen,
@@ -15,11 +15,13 @@ import { initAnalytics, openAnalyticsScreen } from './lib/analytics.js';
 import { refreshNavBadges, renderHome } from './lib/home.js';
 import { goTo, renderSync, startShell } from './lib/shell.js';
 import { initSuporte, resetSuporteView } from './lib/suporte.js';
-import { initHoras, showHorasEditor } from './lib/horas.js';
+import { initHoras, showHorasEditor, syncHorasToPeriod } from './lib/horas.js';
 import {
+  inheritPreviousOp,
   initOp,
-  opToggleAdd,
   opAddItem,
+  opAddSprint,
+  opToggleAdd,
 } from './lib/op.js';
 
 export { goTo };
@@ -51,6 +53,8 @@ function bindOpActions() {
   document.getElementById('op-add-btn')?.addEventListener('click', opToggleAdd);
   document.getElementById('btn-op-add-item')?.addEventListener('click', opAddItem);
   document.getElementById('btn-op-add-cancel')?.addEventListener('click', opToggleAdd);
+  document.getElementById('btn-op-add-sprint')?.addEventListener('click', opAddSprint);
+  document.getElementById('btn-op-inherit')?.addEventListener('click', () => inheritPreviousOp());
 }
 
 function bindHistActions() {
@@ -79,6 +83,7 @@ function boot() {
     window.scrollTo(0, 0);
     refreshNavBadges();
     if (state.screen === 'inicio') renderHome();
+    if (state.screen === 'horas') syncHorasToPeriod(state.period);
     if (state.screen === 'hist') openHistoryScreen();
     if (state.screen === 'pulse') openAnalyticsScreen();
   });

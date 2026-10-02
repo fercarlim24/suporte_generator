@@ -6,10 +6,10 @@ A entrada é a **seleção de produto** (OS2 ou FORE). Com um produto escolhido,
 
 ## Ferramentas
 
-- **Suporte** — CSV do Drag.app (Reports → Tags ou Daily Cards)
-- **Horas** — lançamento manual (semana, OS2/FORE, categoria, tempo)
-- **One Pager** — formulário semanal com roadmap
-- **Histórico** — relatórios salvos no navegador (JSON estruturado; compatível com versões antigas em HTML)
+- **Suporte** — CSV do Drag.app, em três passos: fonte, revisão e exportação (pede confirmação antes de substituir o mês)
+- **Horas** — lançamento manual numa grade categoria × OS2/FORE, com cópia da semana anterior
+- **One Pager** — resumo semanal, status por frente e roadmap de sprints editável
+- **Histórico** — relatórios do produto e do período, com filtro por tipo e exportação PDF/JSON
 - **Product Pulse (BI)** — saúde do produto no período: suporte, horas, one pager e, quando configurados, GA4 e Metabase
 
 ## Product Pulse (BI)

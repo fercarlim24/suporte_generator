@@ -70,38 +70,31 @@
   <main class="workspace">
     <section id="view-inicio" class="view"></section>
 <div id="screen-suporte" class="view">
-  <div class="topbar">
-    <button class="back-btn" id="btn-back-hub-suporte" data-go="hub">← Voltar</button>
-    <div class="topbar-sep"></div>
-    <span class="topbar-logo">Landscape<span>OS 2</span></span>
-    <span class="topbar-sep"></span>
-    <span class="topbar-title">Relatório de Suporte</span>
+  <header class="page-head">
+    <div class="kicker">Suporte</div>
+    <h2>Relatório mensal</h2>
+  </header>
+  <div class="stepper" id="suporte-steps">
+    <button type="button" class="step active" data-suporte-step="1">1 · Fonte de dados</button>
+    <button type="button" class="step" data-suporte-step="2">2 · Revisar métricas</button>
+    <button type="button" class="step" data-suporte-step="3">3 · Exportar</button>
   </div>
 
-  <!-- Upload state -->
-  <div class="upload-area" id="uploadArea">
-    <p class="hub-logo" style="margin-bottom:8px;">Landscape<span style="color:var(--purple)">OS 2</span> — Suporte</p>
-    <h1 class="upload-heading">Relatório mensal</h1>
-    <p class="upload-sub">Faça o export do Drag.app (Reports → Tags ou Daily Cards)<br>e carregue o CSV para gerar o relatório automaticamente.</p>
-
+  <div class="upload-area step-panel active" id="uploadArea">
     <div class="drop-zone" id="dropZone">
       <input type="file" id="csvInput" accept=".csv">
-      <div class="drop-icon">⌗</div>
+      <div class="drop-icon"><i class="ph ph-upload-simple" aria-hidden="true"></i></div>
       <div class="drop-label">Arraste o CSV ou clique para selecionar</div>
       <div class="drop-hint">Reports → Tags · ou Daily Cards — Drag.app</div>
     </div>
-
     <p class="upload-note">
-      <strong>Como exportar do Drag:</strong><br>
-      <strong>Reports → Tags → Board</strong> (recomendado) — exporte o CSV do relatório por tags.<br>
-      Ou no board: três pontos → Export → <strong>Daily Cards CSV</strong>.<br>
-      O app detecta automaticamente <strong>CARD NAME</strong>, <strong>TAGS</strong> e <strong>COLOR</strong>.
-      Relatórios são <strong>salvos automaticamente</strong> no histórico ao carregar o CSV.
+      Reports → Tags → Board, ou no board: três pontos → Export → Daily Cards CSV.
+      O app lê CARD NAME, TAGS e COLOR. O histórico só é atualizado no passo Exportar.
     </p>
+    <div id="suporte-parse" hidden></div>
   </div>
 
-  <!-- Report state (hidden until CSV loaded) -->
-  <div class="report-wrap" id="reportWrap" style="display:none;">
+  <div class="report-wrap step-panel" id="reportWrap">
     <div class="report-header">
       <div>
         <div class="report-logo">LandscapeOS 2 — Suporte</div>
@@ -109,10 +102,7 @@
         <div class="report-period" id="rptPeriod"></div>
       </div>
       <div class="report-actions np">
-        <button class="rpt-btn" id="btn-suporte-reset">← Novo upload</button>
-        <button class="rpt-btn" id="btn-suporte-save">☁ Atualizar histórico</button>
-        <button class="rpt-btn" id="btn-suporte-json">⬇ JSON</button>
-        <button class="rpt-btn primary" id="btn-suporte-pdf">↓ PDF</button>
+        <button class="btn btn-secondary" type="button" id="btn-suporte-goto-export">Exportar</button>
       </div>
     </div>
 
@@ -134,6 +124,28 @@
     <div class="report-footer">
       <span id="rptFooterLeft">LandscapeOS 2 — Relatório de Suporte</span>
       <span id="rptFooterRight"></span>
+    </div>
+  </div>
+
+  <div class="step-panel" id="suporte-export">
+    <div class="card" id="suporte-replace" hidden>
+      <p id="suporte-replace-text"></p>
+      <div class="report-actions" style="margin-top:12px;">
+        <button type="button" class="btn btn-primary" id="suporte-replace-yes">Substituir</button>
+        <button type="button" class="btn btn-ghost" id="suporte-replace-no">Cancelar</button>
+      </div>
+    </div>
+    <div id="suporte-saved" hidden>
+      <h4>Relatório salvo</h4>
+      <p style="margin:10px 0;"><span class="tag tag-accent" id="suporte-saved-tag">Salvo · local</span></p>
+      <div class="report-actions">
+        <button type="button" class="btn btn-primary" id="btn-suporte-pdf">Baixar PDF</button>
+        <button type="button" class="btn btn-secondary" id="btn-suporte-print">Imprimir</button>
+        <button type="button" class="btn btn-secondary" id="btn-suporte-history">Ver no histórico</button>
+        <button type="button" class="btn btn-ghost" id="btn-suporte-json">JSON</button>
+        <button type="button" class="btn btn-ghost" id="btn-suporte-reset">Novo upload</button>
+        <button type="button" class="btn btn-ghost" id="btn-suporte-save">Atualizar histórico</button>
+      </div>
     </div>
   </div>
 </div>
@@ -173,6 +185,7 @@
       <div class="op-card" style="flex:5;">
         <div class="op-card-body">
           <div class="op-label"><span class="op-label-line"></span>Resumo Executivo</div>
+          <button type="button" class="btn btn-secondary" id="btn-op-inherit" style="margin-bottom:8px;">Herdar da semana anterior</button>
           <textarea id="op-resumo" class="op-field" rows="6" placeholder="Resumo executivo do status atual do produto..."></textarea>
         </div>
       </div>
@@ -234,6 +247,7 @@
     <div class="op-card">
       <div class="op-col-hdr purple" style="display:flex;align-items:center;">
         <span style="flex:1;">Roadmap</span>
+        <button type="button" class="btn btn-ghost" id="btn-op-add-sprint">Adicionar sprint</button>
         <div class="np" style="display:flex;gap:6px;align-items:center;">
           <span style="font-size:9px;color:rgba(255,255,255,.5);font-weight:400;">Sprint atual:</span>
           <select id="op-cur-sprint"  style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:2px 5px;color:white;font-size:10px;font-family:inherit;"></select>
@@ -268,44 +282,51 @@
 
   <!-- Manual entry editor -->
   <div class="h-editor-wrap" id="h-editor-area">
-    <div class="h-editor-header">
-      <p class="hub-logo" style="margin-bottom:4px;">Landscape<span style="color:var(--purple)">OS 2</span> — Dev</p>
-      <h1 class="upload-heading" style="font-size:26px;margin-bottom:4px;">Horas mensais</h1>
-      <p class="upload-sub" style="margin-bottom:20px;">Lance as horas do mês diretamente aqui. O rascunho fica salvo neste navegador.</p>
-    </div>
+    <header class="page-head">
+      <div class="kicker">Horas</div>
+      <h2>Horas de desenvolvimento</h2>
+    </header>
 
     <div class="h-editor-toolbar">
       <label class="h-month-label">
         Mês de referência
-        <input type="month" id="h-month-input" class="h-month-input">
+        <input type="month" id="h-month-input" class="input h-month-input">
       </label>
+      <div id="h-week-seg" class="seg" role="radiogroup" aria-label="Semana"></div>
       <div class="h-editor-actions">
-        <button type="button" class="rpt-btn" id="h-add-row">+ Lançamento</button>
-        <button type="button" class="rpt-btn" id="h-clear-draft">Limpar</button>
-        <button type="button" class="rpt-btn" id="h-load-demo">Demo</button>
-        <button type="button" class="rpt-btn primary" id="h-generate-report">Gerar relatório →</button>
+        <button type="button" class="btn btn-secondary" id="h-copy-week">Copiar semana anterior</button>
+        <button type="button" class="btn btn-primary" id="h-save-week">Salvar semana</button>
+        <button type="button" class="btn btn-ghost" id="h-clear-draft">Limpar</button>
+        <button type="button" class="btn btn-ghost" id="h-load-demo">Demo</button>
+        <button type="button" class="btn btn-secondary" id="h-generate-report">Ver relatório</button>
       </div>
     </div>
 
-    <div class="h-editor-table-wrap">
-      <table class="h-editor-table">
+    <div class="card">
+      <table class="table hours-matrix">
         <thead>
           <tr>
-            <th>Semana</th>
-            <th>Sistema</th>
             <th>Categoria</th>
-            <th>Horas</th>
-            <th>Descrição</th>
-            <th></th>
+            <th>OS2</th>
+            <th>FORE</th>
+            <th>Total</th>
           </tr>
         </thead>
-        <tbody id="h-entries-body"></tbody>
+        <tbody id="h-matrix-body"></tbody>
+        <tfoot>
+          <tr>
+            <th>Total</th>
+            <td id="h-total-os2" class="matrix-total"></td>
+            <td id="h-total-fore" class="matrix-total"></td>
+            <td id="h-total-all" class="matrix-total"></td>
+          </tr>
+        </tfoot>
       </table>
     </div>
 
     <div class="h-editor-footer">
-      <span id="h-editor-summary">0 linha(s)</span>
-      <span class="upload-note" style="margin:0;text-align:right;">Formatos de tempo: <code>1:30</code> ou <code>2:15:00</code></span>
+      <span id="h-editor-summary">0 de 4 semanas lançadas</span>
+      <span class="upload-note">Horas em número (1,5 = 1h30). O rascunho fica neste navegador até salvar.</span>
     </div>
   </div>
 

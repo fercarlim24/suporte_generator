@@ -1,8 +1,9 @@
 import { periodChoices, getState, setState } from './app-state.js';
-import { mapHorasEffort, mapOnePager } from './bi/facts.js';
+import { mapHorasEffort } from './bi/facts.js';
 import { REPORT_LABELS } from './config.js';
 import { histGetAll } from './history.js';
 import { getEntryReportMonth, reportMonthLabel } from './report-period.js';
+import { entryInScope } from './report-scope.js';
 import { goTo, setNavBadges } from './shell.js';
 
 function monthTitle(key) {
@@ -21,24 +22,9 @@ function entries() {
   return histGetAll().filter((entry) => entry && !entry.legacy && entry.version === 2);
 }
 
-function matchesProduct(entry, product) {
-  if (entry.type === 'suporte') {
-    if (product === 'OS2') return true;
-    return Number(entry.payload?.data?.foreTickets || 0) > 0;
-  }
-  if (entry.type === 'horas') {
-    return (entry.payload?.rows || []).some((row) => String(row.sis || '').toUpperCase() === product);
-  }
-  if (entry.type === 'op') {
-    const health = mapOnePager(entry);
-    return health?.product_code === product;
-  }
-  return false;
-}
-
 function forPeriod(product, period) {
   return entries()
-    .filter((entry) => getEntryReportMonth(entry) === period && matchesProduct(entry, product))
+    .filter((entry) => entryInScope(entry, product, period))
     .sort((a, b) => String(b.savedAt || '').localeCompare(String(a.savedAt || '')));
 }
 

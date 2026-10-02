@@ -2,11 +2,12 @@ import {
   HIST_KEY,
   HIST_KEY_LEGACY,
   HIST_MAX,
-  REPORT_BADGE,
   REPORT_LABELS,
 } from './config.js';
-import { downloadJson, escapeHtml, setLoading, showToast } from './utils.js';
+import { downloadJson, setLoading, showToast } from './utils.js';
 import { getEntryReportMonth, reportMonthLabel } from './report-period.js';
+import { entryInScope } from './report-scope.js';
+import { getState } from './app-state.js';
 import {
   checkCloudAvailable,
   deleteCloudReport,
@@ -382,71 +383,96 @@ export function histViewAndPrint(id) {
 
 export function histRenderList(filter) {
   histListFilter = filter || 'ALL';
-  const all = histGetAll();
+  const { product, period } = getState();
+  const all = histGetAll().filter((entry) => entryInScope(entry, product, period));
 
   const types = [
-    { key: 'ALL', label: 'Todos', count: all.length },
-    { key: 'suporte', label: 'Suporte', count: all.filter((e) => e.type === 'suporte').length },
-    { key: 'horas', label: 'Horas Dev', count: all.filter((e) => e.type === 'horas').length },
-    { key: 'op', label: 'One Pager', count: all.filter((e) => e.type === 'op').length },
+    { key: 'ALL', label: 'Todos' },
+    { key: 'suporte', label: 'Suporte' },
+    { key: 'horas', label: 'Horas' },
+    { key: 'op', label: 'One Pager' },
   ];
 
   const filtersEl = document.getElementById('h-hist-filters');
-  filtersEl.innerHTML = '';
+  filtersEl.replaceChildren();
+  filtersEl.className = 'seg';
+  filtersEl.setAttribute('role', 'radiogroup');
+  filtersEl.setAttribute('aria-label', 'Tipo de relatório');
   types.forEach((t) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'hfilt' + (histListFilter === t.key ? ' active' : '');
-    btn.innerHTML = `${t.label} <span style="opacity:.6;font-size:10px;">${t.count}</span>`;
-    btn.addEventListener('click', () => histRenderList(t.key));
-    filtersEl.appendChild(btn);
+    const label = document.createElement('label');
+    label.className = 'seg-opt';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'hist-filter';
+    input.value = t.key;
+    input.checked = histListFilter === t.key;
+    input.addEventListener('change', () => {
+      if (input.checked) histRenderList(t.key);
+    });
+    label.append(input, document.createTextNode(t.label));
+    filtersEl.append(label);
   });
 
   const shown = histListFilter === 'ALL' ? all : all.filter((e) => e.type === histListFilter);
   const container = document.getElementById('h-hist-entries');
+  container.replaceChildren();
 
   if (!shown.length) {
-    container.innerHTML = `<div class="hist-empty">
-      <div class="hist-empty-icon">📋</div>
-      <div style="font-size:15px;color:var(--text);margin-bottom:8px;">Nenhum relatório salvo ainda</div>
-      <div style="font-size:12px;">Relatórios de suporte são salvos automaticamente ao carregar o CSV. Use <strong>☁ Atualizar histórico</strong> para forçar nova gravação.</div>
-    </div>`;
+    const empty = document.createElement('div');
+    empty.className = 'hist-empty';
+    const title = document.createElement('div');
+    title.textContent = 'Nenhum relatório neste período';
+    const detail = document.createElement('div');
+    detail.className = 'sub';
+    detail.textContent = 'Suporte entra no histórico ao exportar. Horas e one pager entram ao salvar.';
+    empty.append(title, detail);
+    container.append(empty);
     return;
   }
 
-  container.innerHTML = '';
-  shown.forEach((e) => {
-    const d = new Date(e.savedAt);
-    const importStr =
-      d.toLocaleDateString('pt-BR') +
-      ' às ' +
-      d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const reportMonth = getEntryReportMonth(e);
-    const monthStr = reportMonth ? reportMonthLabel(reportMonth) : e.period || '';
-    const row = document.createElement('div');
-    row.className = 'hist-entry';
-    const cloudTag = e.cloud ? ' · ☁' : e.legacy ? ' · legado' : '';
-    row.innerHTML = `
-      <span class="hist-badge ${REPORT_BADGE[e.type] || ''}">${REPORT_LABELS[e.type] || e.type}${cloudTag}</span>
-      <div class="hist-info">
-        <div class="hist-title">${escapeHtml(e.title)}</div>
-        <div class="hist-meta">${monthStr ? escapeHtml(monthStr) + ' · importado ' : ''}${importStr}</div>
-      </div>
-      <div class="hist-actions"></div>`;
-    const actions = row.querySelector('.hist-actions');
+  const table = document.createElement('table');
+  table.className = 'table';
+  const head = document.createElement('thead');
+  const hr = document.createElement('tr');
+  ['Relatório', 'Período', 'Gerado em', ''].forEach((label) => {
+    const th = document.createElement('th');
+    th.textContent = label;
+    hr.append(th);
+  });
+  head.append(hr);
+  const body = document.createElement('tbody');
+  shown.forEach((entry) => {
+    const tr = document.createElement('tr');
+    const saved = new Date(entry.savedAt);
+    const when = Number.isNaN(saved.getTime())
+      ? '—'
+      : `${saved.toLocaleDateString('pt-BR')} ${saved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    const reportMonth = getEntryReportMonth(entry);
+    [entry.title || REPORT_LABELS[entry.type] || entry.type, reportMonth ? reportMonthLabel(reportMonth) : entry.period || '—', when].forEach(
+      (text) => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        tr.append(td);
+      },
+    );
+    const actions = document.createElement('td');
+    actions.className = 'hist-actions';
     const mk = (label, cls, fn) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'ha-btn ' + (cls || '');
+      b.className = 'btn ' + (cls || 'btn-ghost');
       b.textContent = label;
       b.addEventListener('click', fn);
-      actions.appendChild(b);
+      actions.append(b);
     };
-    mk('Ver', '', () => histView(e.id));
-    mk('↓ PDF', 'primary', () => histViewAndPrint(e.id));
-    mk('✕', 'danger', () => histDelete(e.id));
-    container.appendChild(row);
+    mk('Ver', 'btn-secondary', () => histView(entry.id));
+    mk('PDF', 'btn-primary', () => histViewAndPrint(entry.id));
+    mk('Excluir', 'btn-ghost', () => histDelete(entry.id));
+    tr.append(actions);
+    body.append(tr);
   });
+  table.append(head, body);
+  container.append(table);
 }
 
 export function histUpdateHubCount() {

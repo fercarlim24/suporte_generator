@@ -10,9 +10,143 @@ import {
 } from './utils.js';
 
 let insightsSaveTimer = null;
+let suporteFileName = '';
+let suporteCommitted = false;
+let suporteSourceRows = [];
 
 function scheduleSuporteAutoSave() {
+  if (!suporteCommitted) return;
   import('./history.js').then(({ histAutoSave }) => histAutoSave('suporte'));
+}
+
+function textNode(tag, className, text) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (text != null) el.textContent = text;
+  return el;
+}
+
+/** Conta ruído (cards só com tags de status) sem alterar o que entra em chamados. */
+export function summarizeSuporteParse(rows, processed) {
+  const named = normalizeCsvData(rows || []).filter((row) => getCardName(row));
+  let noise = 0;
+  const statusOnly = new Set([
+    'EM ANDAMENTO',
+    'TICKET FECHADO',
+    '✨ RESOLVED',
+    '✨ ACTION REQUIRED',
+    '✨ AWAITING RESPONSE',
+    '✨ FYI',
+    'INTERNO',
+  ]);
+  named.forEach((row) => {
+    const tags = parseTags(getTagsRaw(row));
+    const name = getCardName(row);
+    if (isNotificationEmailCard({ tags, name })) return;
+    const meaningful = tags.filter((tag) => !statusOnly.has(tag));
+    if (!meaningful.length) noise += 1;
+  });
+  return {
+    lines: processed?.total ?? named.length,
+    tickets: processed?.realTickets ?? 0,
+    notifications: processed?.notifications ?? 0,
+    noise,
+  };
+}
+
+export function setSuporteStep(step) {
+  document.querySelectorAll('[data-suporte-step]').forEach((btn) => {
+    btn.classList.toggle('active', Number(btn.dataset.suporteStep) === step);
+  });
+  document.getElementById('uploadArea')?.classList.toggle('active', step === 1);
+  document.getElementById('reportWrap')?.classList.toggle('active', step === 2);
+  document.getElementById('suporte-export')?.classList.toggle('active', step === 3);
+  if (step === 3) prepareSuporteExport();
+}
+
+function renderParsePreview(processed, meta) {
+  const box = document.getElementById('suporte-parse');
+  if (!box) return;
+  box.replaceChildren();
+  if (!processed) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const summary = summarizeSuporteParse(suporteSourceRows, processed);
+  box.append(textNode('h4', '', suporteFileName || 'CSV'));
+  const metaLine = textNode('p', 'sub');
+  metaLine.textContent = `${summary.lines} linhas · período ${meta.period || 'não detectado'}`;
+  box.append(metaLine);
+  const grid = textNode('div', 'parse-grid');
+  [
+    ['Tickets considerados', summary.tickets, 'Chamados reais, sem e-mail automático'],
+    ['Notificações descartadas', summary.notifications, 'Tags EMAILS ou NOTIFICAÇÃO, fora da análise'],
+    ['Ruído descartado', summary.noise, 'Só tags de status, sem categoria de produto'],
+  ].forEach(([label, value, reason]) => {
+    const card = textNode('article', 'card');
+    card.append(textNode('div', 'kpi-label', label));
+    card.append(textNode('div', 'kpi-value', String(value)));
+    card.append(textNode('div', 'kpi-sub', reason));
+    grid.append(card);
+  });
+  box.append(grid);
+  const next = textNode('button', 'btn btn-primary', 'Revisar métricas');
+  next.type = 'button';
+  next.addEventListener('click', () => setSuporteStep(2));
+  box.append(next);
+}
+
+async function prepareSuporteExport() {
+  const replaceBox = document.getElementById('suporte-replace');
+  const savedBox = document.getElementById('suporte-saved');
+  if (!currentSuporteData) return;
+  if (suporteCommitted) {
+    if (replaceBox) replaceBox.hidden = true;
+    if (savedBox) savedBox.hidden = false;
+    return;
+  }
+  const meta = buildSuporteMeta(currentSuporteData.dragMeta || {});
+  const { histGetAll } = await import('./history.js');
+  const { getEntryReportMonth, reportMonthLabel } = await import('./report-period.js');
+  const existing = meta.reportMonth
+    ? histGetAll().find(
+        (entry) =>
+          entry.type === 'suporte' &&
+          !entry.legacy &&
+          entry.version === 2 &&
+          getEntryReportMonth(entry) === meta.reportMonth,
+      )
+    : null;
+  if (existing) {
+    if (savedBox) savedBox.hidden = true;
+    if (replaceBox) replaceBox.hidden = false;
+    const text = document.getElementById('suporte-replace-text');
+    if (text) {
+      text.textContent = `Já existe um relatório de ${reportMonthLabel(meta.reportMonth)}. Substituir?`;
+    }
+    return;
+  }
+  if (replaceBox) replaceBox.hidden = true;
+  await commitSuporteReport();
+}
+
+export async function commitSuporteReport() {
+  if (!currentSuporteData) return null;
+  suporteCommitted = true;
+  const { histAutoSave } = await import('./history.js');
+  const { isCloudAvailable } = await import('./api.js');
+  const entry = await histAutoSave('suporte', { quiet: true });
+  const replaceBox = document.getElementById('suporte-replace');
+  const savedBox = document.getElementById('suporte-saved');
+  if (replaceBox) replaceBox.hidden = true;
+  if (savedBox) savedBox.hidden = false;
+  const tag = document.getElementById('suporte-saved-tag');
+  if (tag) {
+    tag.className = 'tag tag-accent';
+    tag.textContent = entry?.cloud || isCloudAvailable() ? 'Salvo · local + nuvem' : 'Salvo · local';
+  }
+  return entry;
 }
 
 function bindInsightsAutoSave(input) {
@@ -20,6 +154,7 @@ function bindInsightsAutoSave(input) {
     if (currentSuporteData) currentSuporteData.customInsights = input.value;
     clearTimeout(insightsSaveTimer);
     insightsSaveTimer = setTimeout(() => {
+      if (!suporteCommitted) return;
       import('./history.js').then(({ histAutoSave }) => histAutoSave('suporte', { quiet: true }));
     }, 1500);
   });
@@ -275,10 +410,6 @@ export function buildSuporteMeta(dragMeta = {}) {
 }
 
 export function renderSuporteReport(d, meta = buildSuporteMeta()) {
-  document.getElementById('uploadArea').style.display = 'none';
-  const wrap = document.getElementById('reportWrap');
-  wrap.style.display = 'block';
-
   document.getElementById('rptPeriod').textContent = meta.period || '';
   document.getElementById('rptFooterRight').textContent =
     'Gerado em ' + (meta.footerDate || new Date().toLocaleDateString('pt-BR'));
@@ -286,10 +417,10 @@ export function renderSuporteReport(d, meta = buildSuporteMeta()) {
   const closedPct = d.realTickets ? Math.round((d.closed / d.realTickets) * 100) : 0;
 
   document.getElementById('rptMetrics').innerHTML = `
-    <div class="metric"><div class="metric-label">Total de cards</div><div class="metric-value">${d.total}</div><div class="metric-sub">export completo</div></div>
-    <div class="metric"><div class="metric-label">Chamados</div><div class="metric-value">${d.realTickets}</div><div class="metric-sub">excl. ${d.notifications} notificações</div></div>
-    <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value">${d.closed}</div><div class="metric-sub">${closedPct}% com TICKET FECHADO</div></div>
-    <div class="metric"><div class="metric-label">Em aberto</div><div class="metric-value">${d.openTickets}</div><div class="metric-sub">sem TICKET FECHADO</div></div>
+    <div class="metric"><div class="metric-label">Tickets</div><div class="metric-value">${d.realTickets}</div><div class="metric-sub">excl. ${d.notifications} notificações</div></div>
+    <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value">${d.closed}</div><div class="metric-sub">${closedPct}% só com TICKET FECHADO</div></div>
+    <div class="metric"><div class="metric-label">FORE</div><div class="metric-value">${d.foreTickets}</div><div class="metric-sub">${d.foreEmails} notificações FORE à parte</div></div>
+    <div class="metric"><div class="metric-label">Bugs</div><div class="metric-value">${d.bugs.length}</div><div class="metric-sub">chamados com tag BUG</div></div>
   `;
 
   document.getElementById('rptFore').innerHTML = `
@@ -450,17 +581,32 @@ export function processAndRenderSuporte(data, dragMeta = {}) {
     return null;
   }
   currentSuporteData.dragMeta = dragMeta;
-  renderSuporteReport(currentSuporteData, buildSuporteMeta(dragMeta));
-  scheduleSuporteAutoSave();
+  suporteSourceRows = data;
+  suporteCommitted = false;
+  const meta = buildSuporteMeta(dragMeta);
+  renderSuporteReport(currentSuporteData, meta);
+  renderParsePreview(currentSuporteData, meta);
+  setSuporteStep(1);
   return currentSuporteData;
 }
 
 export function resetSuporteView() {
   currentSuporteData = null;
-  document.getElementById('uploadArea').style.display = 'flex';
-  document.getElementById('reportWrap').style.display = 'none';
+  suporteFileName = '';
+  suporteSourceRows = [];
+  suporteCommitted = false;
   const input = document.getElementById('csvInput');
   if (input) input.value = '';
+  const preview = document.getElementById('suporte-parse');
+  if (preview) {
+    preview.replaceChildren();
+    preview.hidden = true;
+  }
+  const saved = document.getElementById('suporte-saved');
+  const replaceBox = document.getElementById('suporte-replace');
+  if (saved) saved.hidden = true;
+  if (replaceBox) replaceBox.hidden = true;
+  setSuporteStep(1);
 }
 
 export function loadSuporteDemo() {
@@ -491,6 +637,7 @@ export function loadSuporteDemo() {
 
 function handleSuporteCsv(file) {
   if (!file) return;
+  suporteFileName = file.name || 'CSV';
   parseSuporteCsvFile(file, (rows, meta) => processAndRenderSuporte(rows, meta || {}));
 }
 
@@ -513,4 +660,21 @@ export function initSuporte() {
     dz.classList.remove('drag-over');
     handleSuporteCsv(e.dataTransfer.files[0]);
   });
+
+  document.querySelectorAll('[data-suporte-step]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!currentSuporteData && Number(btn.dataset.suporteStep) > 1) return;
+      setSuporteStep(Number(btn.dataset.suporteStep));
+    });
+  });
+  document.getElementById('suporte-replace-yes')?.addEventListener('click', () => commitSuporteReport());
+  document.getElementById('suporte-replace-no')?.addEventListener('click', () => setSuporteStep(2));
+  document.getElementById('btn-suporte-goto-export')?.addEventListener('click', () => {
+    if (currentSuporteData) setSuporteStep(3);
+  });
+  document.getElementById('btn-suporte-print')?.addEventListener('click', () => window.print());
+  document.getElementById('btn-suporte-history')?.addEventListener('click', () => {
+    import('./shell.js').then(({ goTo }) => goTo('hist'));
+  });
+  setSuporteStep(1);
 }
