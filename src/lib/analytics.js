@@ -1,6 +1,7 @@
-import { getState, hrefFor, periodChoices, setState } from './app-state.js';
+import { getState, hrefFor, periodChoices, setState, shiftMonth } from './app-state.js';
+import { loadProductPulse } from './bi.js';
 import { refreshNavBadges } from './home.js';
-import { getPulse } from './pulse.js';
+import { gaFromCloud, getPulse, metabaseFromCloud } from './pulse.js';
 import { reportMonthLabel } from './report-period.js';
 import { goTo, hasCloudHost, renderSync } from './shell.js';
 
@@ -14,6 +15,7 @@ const TABS = [
 ];
 
 let sprintFilter = '';
+let cloudExtras = { ga: null, metabase: null };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -359,7 +361,12 @@ export function renderPulse() {
   const state = getState();
   const product = state.product || 'OS2';
   const period = state.period;
-  const pulse = getPulse({ product, period });
+  const pulse = getPulse({
+    product,
+    period,
+    ga: cloudExtras.ga,
+    metabase: cloudExtras.metabase,
+  });
   root.replaceChildren();
 
   const head = el('header', 'page-head');
@@ -370,7 +377,7 @@ export function renderPulse() {
   filters.append(seg('pulse-period', periodChoices(period).map((key) => [key, monthShort(key)]), period, (value) => {
     setState({ period: value });
     refreshNavBadges();
-    renderPulse();
+    openAnalyticsScreen();
   }));
   filters.append(seg('pulse-product', [['OS2', 'OS2'], ['FORE', 'FORE']], product, (value) => {
     setState({ product: value, screen: 'pulse' });
@@ -419,8 +426,27 @@ export function renderPulse() {
   root.append(panelFor(state.pulseTab || 'pulse', pulse, product));
 }
 
+async function loadCloudExtras(period, product) {
+  if (hasCloudHost() === false) return { ga: null, metabase: null };
+  try {
+    const model = await loadProductPulse({
+      from: shiftMonth(period, -5),
+      to: period,
+      product: 'ALL',
+    });
+    return {
+      ga: gaFromCloud(model),
+      metabase: metabaseFromCloud(model, product),
+    };
+  } catch {
+    return { ga: null, metabase: null };
+  }
+}
+
 export async function openAnalyticsScreen() {
   await renderSync();
+  const { period, product } = getState();
+  cloudExtras = await loadCloudExtras(period, product || 'OS2');
   renderPulse();
 }
 

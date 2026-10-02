@@ -21,6 +21,56 @@ export function readMetabaseAdapter() {
   return null;
 }
 
+/** Converte o payload de GET /api/bi/pulse + features. Null se GA não está configurado. */
+export function gaFromCloud(model) {
+  if (!model?.integrations?.ga4) return null;
+  const byPeriod = {};
+  (model.rows || []).forEach((row) => {
+    if (row.mau_proxy == null || !row.period || !row.product_code) return;
+    byPeriod[row.period] = byPeriod[row.period] || {};
+    byPeriod[row.period][row.product_code] = Number(row.mau_proxy);
+  });
+  const features = model.features || [];
+  if (!Object.keys(byPeriod).length && !features.length) return null;
+  return {
+    asOf: (model.freshness || []).find((item) => item.source === 'ga4')?.as_of || null,
+    byPeriod,
+    features: features.map((feature) => ({
+      feature_key: feature.feature_key,
+      product_code: feature.product_code,
+      event_count: feature.event_count,
+      tickets: feature.tickets,
+      delta_usage: feature.delta_usage ?? null,
+    })),
+  };
+}
+
+/** Converte tenants do Metabase. Null se a integração não está configurada. */
+export function metabaseFromCloud(model, product) {
+  if (!model?.integrations?.metabase) return null;
+  const rows = (model.rows || []).filter(
+    (row) => row.active_tenants != null || row.backend_errors != null,
+  );
+  const latest = rows
+    .filter((row) => !product || row.product_code === product)
+    .sort((a, b) => String(a.period).localeCompare(String(b.period)))
+    .at(-1);
+  return {
+    asOf: (model.freshness || []).find((item) => item.source === 'metabase')?.as_of || null,
+    activeTenants: latest?.active_tenants ?? null,
+    backendErrors: latest?.backend_errors ?? null,
+    tenants: (model.tenants || [])
+      .filter((tenant) => !product || !tenant.product_code || tenant.product_code === product)
+      .map((tenant) => ({
+        tenant_name: tenant.tenant_name || tenant.tenant_id,
+        product_code: tenant.product_code,
+        delta_usage: tenant.delta_usage ?? null,
+        delta_tickets: tenant.delta_tickets ?? null,
+        rag: tenant.rag || null,
+      })),
+  };
+}
+
 function addMonths(key, delta) {
   const [y, m] = String(key).split('-').map(Number);
   const date = new Date(y, (m || 1) - 1 + delta, 1);
