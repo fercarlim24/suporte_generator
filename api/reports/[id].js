@@ -1,4 +1,5 @@
 import { checkApiKey, isBackendConfigured } from '../_lib/auth.js';
+import { deleteSupportMonth } from '../_lib/bi/etl.js';
 import { json } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
 
@@ -21,6 +22,7 @@ export default async function handler(req, res) {
     if (req.method === 'DELETE') {
       const { error } = await supabase.from('reports').delete().eq('id', id);
       if (error) throw error;
+      await deleteSupportMonth(supabase, id);
       return json(res, 200, { ok: true });
     }
 

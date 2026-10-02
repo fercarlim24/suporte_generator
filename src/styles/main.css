@@ -75,11 +75,12 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
    SCREEN 0 — HUB NAVIGATION
 ════════════════════════════════════════════ */
 #screen-hub {
-  display: flex; flex-direction: column;
+  flex-direction: column;
   align-items: center; justify-content: center;
   min-height: 100vh; padding: 40px 20px;
   background: var(--bg-dark);
 }
+#screen-hub.active { display: flex; }
 .hub-logo {
   font-size: 10px; font-weight: 600; letter-spacing: .2em;
   text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
@@ -347,9 +348,28 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
 ════════════════════════════════════════════ */
 #screen-analytics { background: #f7f8fa; }
 #screen-analytics .topbar { background: var(--bg-menu); }
-.analytics-wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 60px; }
+.analytics-wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
 .analytics-header { margin-bottom: 16px; }
 .analytics-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.pulse-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 12px; }
+.pulse-toolbar label { display: flex; flex-direction: column; gap: 4px; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: #888; }
+.pulse-toolbar input, .pulse-toolbar select {
+  border: 1px solid #e2e8f0; border-radius: 6px; padding: 7px 10px; font-size: 13px;
+  font-family: inherit; color: #222; background: white; text-transform: none; letter-spacing: 0; font-weight: 400;
+}
+.pulse-note { font-size: 12px; color: #666; margin-bottom: 12px; line-height: 1.45; }
+.pulse-freshness { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.fresh-badge { font-size: 11px; background: white; border: 1px solid #eaedf2; border-radius: 999px; padding: 4px 10px; color: #444; }
+.fresh-badge.missing { color: #a3a3a3; }
+.pulse-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+.pulse-tab {
+  background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 5px 14px;
+  font-size: 11px; color: #555; cursor: pointer; font-family: inherit;
+}
+.pulse-tab.active { background: #5b21b6; border-color: transparent; color: white; font-weight: 500; }
+.pulse-empty { background: white; border: 1px dashed #e2e8f0; border-radius: 8px; padding: 22px 16px; color: #666; font-size: 13px; line-height: 1.5; }
+.pulse-insight { font-size: 12px; color: #555; margin: 12px 0 0; }
+.metric-placeholder .metric-value { color: #ccc; }
 .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .bar-chart { display: flex; gap: 8px; align-items: end; height: 190px; padding-top: 10px; }
 .bar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -363,6 +383,10 @@ textarea:focus, input:focus { background: rgba(139,92,246,.06); border-radius: 4
 .analytics-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .analytics-table th, .analytics-table td { border-bottom: 1px solid #f1f3f7; padding: 8px 6px; text-align: left; color: #444; }
 .analytics-table th { font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: #888; }
+@media (max-width: 800px) {
+  .analytics-kpis { grid-template-columns: repeat(2, 1fr); }
+  .analytics-grid { grid-template-columns: 1fr; }
+}
 
 /* ════════════════════════════════════════════
    HISTORY SCREEN

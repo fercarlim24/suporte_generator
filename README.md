@@ -8,17 +8,27 @@ Gerador de relatórios internos do **LandscapeOS 2** (suporte, horas de desenvol
 - **Horas** — lançamento manual (semana, OS2/FORE, categoria, tempo)
 - **One Pager** — formulário semanal com roadmap
 - **Histórico** — relatórios salvos no navegador (JSON estruturado; compatível com versões antigas em HTML)
-- **Analytics** — consolidação dos relatórios de suporte (evolui para BI de produto)
+- **Product Pulse (BI)** — saúde do produto no período: suporte, horas, one pager e, quando configurados, GA4 e Metabase
 
-## BI de produto (modelo)
+## Product Pulse (BI)
 
-Estrutura para cruzar suporte, horas, one pager, Google Analytics (OS2) e Metabase num warehouse Supabase:
+A tela **Product Pulse** cruza o que já foi salvo. O upload de suporte continua manual; horas e one pager também. GA4 e Metabase entram por sync no servidor (stubs até as credenciais existirem).
 
-- Modelo + mapeamento de payloads → [`docs/BI_MODEL.md`](docs/BI_MODEL.md)
-- Resumo para escopo de design → [`docs/BI_DESIGN_SCOPE.md`](docs/BI_DESIGN_SCOPE.md)
-- SQL (dims, fatos, marts) → [`supabase/schema_bi.sql`](supabase/schema_bi.sql)
+- Modelo → [`docs/BI_MODEL.md`](docs/BI_MODEL.md)
+- Escopo de UX → [`docs/BI_DESIGN_SCOPE.md`](docs/BI_DESIGN_SCOPE.md)
+- Eventos GA4 → [`docs/BI_GA_EVENTS.md`](docs/BI_GA_EVENTS.md)
+- SQL → [`supabase/schema_bi.sql`](supabase/schema_bi.sql)
 
-Rodar no Supabase **depois** de [`supabase/schema.sql`](supabase/schema.sql).
+No SQL Editor do Supabase, nesta ordem:
+
+1. [`supabase/schema.sql`](supabase/schema.sql) — tabela `reports`
+2. [`supabase/schema_bi.sql`](supabase/schema_bi.sql) — dimensões, fatos, marts
+
+Cada save na nuvem (suporte, horas, one pager) alimenta as facts. A UI lê `GET /api/bi/pulse` e `GET /api/bi/freshness` (header `x-api-key`, a mesma de `/api/reports`).
+
+Sem nuvem, ou no GitHub Pages (não serve `/api`), o Pulse usa o histórico do navegador e mostra empty state para GA e Metabase.
+
+Variáveis novas (só na Vercel, nunca no frontend): `REPORTS_PII_SALT`, `GA_PROPERTY_ID`, `GA_CLIENT_EMAIL`, `GA_PRIVATE_KEY`, `METABASE_URL`, `METABASE_API_KEY`, `METABASE_DATABASE_ID`. Ver [`.env.example`](.env.example) e [`docs/BACKEND.md`](docs/BACKEND.md).
 
 ## Desenvolvimento
 

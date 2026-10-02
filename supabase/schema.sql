@@ -1,5 +1,6 @@
 -- LandscapeOS 2 — relatórios na nuvem
 -- Execute no SQL Editor do Supabase (https://supabase.com/dashboard)
+-- Ordem: 1) este arquivo (reports)  2) supabase/schema_bi.sql (warehouse do Product Pulse)
 
 create table if not exists reports (
   id          bigint primary key,

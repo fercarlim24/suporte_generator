@@ -81,7 +81,9 @@ Mapeamento do payload `reports` tipo `suporte`:
 
 `fact_product_usage_daily` ← dia × `event_name` × `feature_key?` × `tenant_id?`.
 
-Eventos mínimos desejados no OS2: `feature_use`, `error_shown`, `login`, `page_view` (+ `tenant_id` / `feature_key` como params).
+A chave de upsert é `usage_grain` (`date|product|event|feature|tenant`). `fact_business_daily` usa `business_grain` (`date|product|tenant`). Índices de expressão não entram no `ON CONFLICT` do PostgREST.
+
+Eventos mínimos no OS2: `feature_use`, `error_shown`, `login`, `page_view` (+ `tenant_id` / `feature_key`). Contrato: [`BI_GA_EVENTS.md`](BI_GA_EVENTS.md).
 
 ### Metabase / ops
 
@@ -104,27 +106,36 @@ Eventos mínimos desejados no OS2: `feature_use`, `error_shown`, `login`, `page_
 - Tenant: suporte alto + uso caindo + RAG risco
 - Split OS2 vs FORE (esforço, tickets, uso)
 
-## API sugerida (próxima implementação)
+## API
+
+Auth: header `x-api-key` igual a `/api/reports`.
 
 ```
-GET /api/bi/pulse?from=YYYY-MM&to=YYYY-MM&product=OS2
+GET /api/bi/pulse?from=YYYY-MM&to=YYYY-MM&product=OS2|FORE|ALL
 GET /api/bi/features?week_start=YYYY-MM-DD
 GET /api/bi/tenants?week_start=YYYY-MM-DD
 GET /api/bi/freshness
+GET|POST /api/bi/sync/ga
+GET|POST /api/bi/sync/metabase
 ```
 
-Credenciais (`GA_*`, `METABASE_*`) só no servidor Vercel — mesmo padrão de [`docs/BACKEND.md`](BACKEND.md).
+O ETL roda no `POST /api/reports` (suporte → `fact_support_*`, horas → `fact_dev_effort`, one pager → `fact_product_health` + `etl_runs`). O CSV de suporte entra como produto `OS2`; `fore_tickets` fica na coluna do mês.
+
+Se o mart vier vazio, a tela Pulse agrega o histórico local (suporte, horas, one pager) e deixa GA/Metabase em empty state.
+
+Credenciais (`GA_*`, `METABASE_*`, `REPORTS_PII_SALT`) só no servidor — [`docs/BACKEND.md`](BACKEND.md). Sem as envs de GA/Metabase, o sync responde `{ "ok": false, "reason": "not_configured" }`.
 
 ## Ordem de rollout
 
-1. Rodar `schema.sql` + `schema_bi.sql` no Supabase  
-2. ETL no save: suporte/horas/op → fatos  
-3. Tela Analytics lê `mart_product_pulse`  
-4. Sync GA4  
-5. Sync Metabase / ops  
-6. Telas feature + tenant health  
+1. Rodar `schema.sql` e depois `schema_bi.sql` no Supabase  
+2. ETL no save: suporte/horas/op → fatos (feito em `POST /api/reports`)  
+3. Tela Product Pulse lê `mart_product_pulse`, com fallback no histórico local  
+4. Sync GA4 — rota pronta, fetch remoto ainda stub  
+5. Sync Metabase / ops — idem  
+6. Feature e tenant health — as rotas leem os marts; ficam vazias até o sync  
 
 ## PII
 
-- E-mails de contato: apenas `sha256(email || salt)`  
-- Nunca gravar payload Drag raw com e-mail em claro nas facts (ok permanecer em `reports.payload` com acesso restrito)
+- E-mails de contato: apenas `sha256(email normalizado + REPORTS_PII_SALT)` nas facts (`contact_email_hash`)
+- Sem salt, o hash fica nulo — o e-mail cru não é gravado
+- O payload de auditoria em `reports` pode continuar restrito ao service role; as facts não levam e-mail em claro

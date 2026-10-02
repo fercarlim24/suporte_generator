@@ -269,8 +269,10 @@ create index if not exists fact_product_health_week_idx
 -- ═══════════════════════════════════════════════════════════
 
 -- Grão: dia × evento × feature (tenant opcional)
+-- usage_grain é a chave natural do upsert (PostgREST não faz ON CONFLICT em índice de expressão).
 create table if not exists fact_product_usage_daily (
   usage_id               bigserial primary key,
+  usage_grain            text,
   date_id                date not null references dim_date (date_id),
   product_code           text not null default 'OS2' references dim_product (product_code),
   event_name             text not null,
@@ -283,14 +285,17 @@ create table if not exists fact_product_usage_daily (
   as_of                  timestamptz not null default now()
 );
 
-create unique index if not exists fact_product_usage_daily_uidx
-  on fact_product_usage_daily (
-    date_id,
-    product_code,
-    event_name,
-    coalesce(feature_key, ''),
-    coalesce(tenant_id, '')
-  );
+alter table fact_product_usage_daily add column if not exists usage_grain text;
+
+update fact_product_usage_daily
+set usage_grain = date_id::text || '|' || product_code || '|' || event_name
+  || '|' || coalesce(feature_key, '') || '|' || coalesce(tenant_id, '')
+where usage_grain is null;
+
+alter table fact_product_usage_daily alter column usage_grain set not null;
+
+create unique index if not exists fact_product_usage_daily_grain_idx
+  on fact_product_usage_daily (usage_grain);
 
 create index if not exists fact_product_usage_daily_feature_idx
   on fact_product_usage_daily (feature_key, date_id)
@@ -300,8 +305,10 @@ create index if not exists fact_product_usage_daily_feature_idx
 -- Fatos — Metabase / ops
 -- ═══════════════════════════════════════════════════════════
 
+-- business_grain: chave natural do upsert (mesma razão de usage_grain).
 create table if not exists fact_business_daily (
   business_id            bigserial primary key,
+  business_grain         text,
   date_id                date not null references dim_date (date_id),
   tenant_id              text references dim_tenant (tenant_id),
   product_code           text not null default 'OS2' references dim_product (product_code),
@@ -318,12 +325,16 @@ create table if not exists fact_business_daily (
   as_of                  timestamptz not null default now()
 );
 
-create unique index if not exists fact_business_daily_uidx
-  on fact_business_daily (
-    date_id,
-    product_code,
-    coalesce(tenant_id, '')
-  );
+alter table fact_business_daily add column if not exists business_grain text;
+
+update fact_business_daily
+set business_grain = date_id::text || '|' || product_code || '|' || coalesce(tenant_id, '')
+where business_grain is null;
+
+alter table fact_business_daily alter column business_grain set not null;
+
+create unique index if not exists fact_business_daily_grain_idx
+  on fact_business_daily (business_grain);
 
 create index if not exists fact_business_daily_tenant_idx
   on fact_business_daily (tenant_id, date_id)
