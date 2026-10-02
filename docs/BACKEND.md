@@ -64,3 +64,11 @@ Se `cloud` for `false`, o JSON lista `missing` com o que falta.
 - **Enviar locais para nuvem** migra o histórico antigo do `localStorage`
 
 Sem as variáveis, o app continua funcionando só com armazenamento local.
+
+## 5. Warehouse BI (opcional)
+
+Além de `reports`, o schema analítico em [`supabase/schema_bi.sql`](../supabase/schema_bi.sql) cria dimensões, fatos e marts para o BI de produto (GA + Metabase + suporte/horas/OP).
+
+Documentação: [`docs/BI_MODEL.md`](BI_MODEL.md) · escopo de design: [`docs/BI_DESIGN_SCOPE.md`](BI_DESIGN_SCOPE.md).
+
+Execute no SQL Editor **depois** de `schema.sql`. A ingestão ETL e as rotas `/api/bi/*` são o próximo passo de implementação.

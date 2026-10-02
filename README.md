@@ -5,9 +5,20 @@ Gerador de relatórios internos do **LandscapeOS 2** (suporte, horas de desenvol
 ## Ferramentas
 
 - **Suporte** — CSV do Drag.app (Reports → Tags ou Daily Cards)
-- **Horas** — CSV ou Google Sheets publicado
+- **Horas** — lançamento manual (semana, OS2/FORE, categoria, tempo)
 - **One Pager** — formulário semanal com roadmap
 - **Histórico** — relatórios salvos no navegador (JSON estruturado; compatível com versões antigas em HTML)
+- **Analytics** — consolidação dos relatórios de suporte (evolui para BI de produto)
+
+## BI de produto (modelo)
+
+Estrutura para cruzar suporte, horas, one pager, Google Analytics (OS2) e Metabase num warehouse Supabase:
+
+- Modelo + mapeamento de payloads → [`docs/BI_MODEL.md`](docs/BI_MODEL.md)
+- Resumo para escopo de design → [`docs/BI_DESIGN_SCOPE.md`](docs/BI_DESIGN_SCOPE.md)
+- SQL (dims, fatos, marts) → [`supabase/schema_bi.sql`](supabase/schema_bi.sql)
+
+Rodar no Supabase **depois** de [`supabase/schema.sql`](supabase/schema.sql).
 
 ## Desenvolvimento
 
