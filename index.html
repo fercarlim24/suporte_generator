@@ -5,24 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LandscapeOS 2 — Product Tools</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" href="/src/styles/tokens.css">
 <link rel="stylesheet" href="/src/styles/main.css">
-<style>
-.app-loading {
-  position: fixed; inset: 0; z-index: 9999;
-  background: rgba(12,15,26,.75);
-  display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
-}
-.app-loading.active { display: flex; }
-.app-loading-spinner {
-  width: 36px; height: 36px; border: 2px solid rgba(255,255,255,.15);
-  border-top-color: #8b5cf6; border-radius: 50%; animation: spin .7s linear infinite;
-}
-.app-loading-msg { font-size: 13px; color: #e2e8f0; }
-@keyframes spin { to { transform: rotate(360deg); } }
-[data-go] { cursor: pointer; }
-</style>
 </head>
 <body>
 

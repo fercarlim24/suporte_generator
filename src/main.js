@@ -1,3 +1,4 @@
+import '@phosphor-icons/web/src/regular/style.css';
 import {
   initHistory,
   openHistoryScreen,

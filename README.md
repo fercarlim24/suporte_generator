@@ -88,7 +88,7 @@ npm test
 ```
 src/
   lib/       # lógica por módulo
-  styles/    # CSS
+  styles/    # tokens Nocturne (`tokens.css`) e componentes
   main.js    # inicialização
 legacy/      # index monolítico original (referência)
 ```
