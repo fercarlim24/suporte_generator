@@ -12,6 +12,7 @@ import {
   getHistListFilter,
 } from './lib/history.js';
 import { initAnalytics, openAnalyticsScreen } from './lib/analytics.js';
+import { refreshNavBadges, renderHome } from './lib/home.js';
 import { goTo, renderSync, startShell } from './lib/shell.js';
 import { initSuporte, resetSuporteView } from './lib/suporte.js';
 import { initHoras, showHorasEditor } from './lib/horas.js';
@@ -76,6 +77,8 @@ function boot() {
   initAnalytics();
   startShell((state) => {
     window.scrollTo(0, 0);
+    refreshNavBadges();
+    if (state.screen === 'inicio') renderHome();
     if (state.screen === 'hist') openHistoryScreen();
     if (state.screen === 'pulse') openAnalyticsScreen();
   });

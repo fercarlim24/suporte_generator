@@ -2,7 +2,7 @@
 
 Gerador de relatórios internos do **LandscapeOS 2** (suporte, horas de desenvolvimento e one pager de produto).
 
-A entrada é a **seleção de produto** (OS2 ou FORE). Com um produto escolhido, a sidebar abre Início, Product Pulse, os geradores e o Histórico. O estado `{ product, period, screen, pulseTab }` fica em `localStorage` e a rota é o hash (`#/OS2/inicio`, `#/FORE/pulse/uso`, …).
+A entrada é a **seleção de produto** (OS2 ou FORE). Com um produto escolhido, a sidebar abre Início, Product Pulse, os geradores e o Histórico. O **Início** resume o mês escolhido (tickets, resolução, bugs e horas) e o status de cada gerador, só com o que já foi salvo para aquele produto e período. O estado `{ product, period, screen, pulseTab }` fica em `localStorage` e a rota é o hash (`#/OS2/inicio`, `#/FORE/pulse/uso`, …).
 
 ## Ferramentas
 
