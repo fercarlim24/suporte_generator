@@ -752,10 +752,73 @@ textarea:focus, input:focus, select:focus {
 @media print {
   .sidebar, .topbar, .np, .report-actions, .stepper, .app-loading, .hist-toast,
   .sync-indicator { display: none !important; }
-  .app-shell, .app-shell.active, .view, .view.active, .step-panel, .step-panel.active { display: block !important; }
-  body.ph > *:not(#print-frame) { display: none !important; }
-  body.ph #print-frame { display: block !important; }
-  body { background: var(--color-neutral-100); color: #111; padding-top: 0; }
+  .app-shell.active { display: block !important; }
+  .view.active, .step-panel.active { display: block !important; }
+  body.print-doc > *:not(#print-frame) { display: none !important; }
+  body.print-doc #print-frame {
+    display: block !important;
+    background: #fff;
+    color: #16141f;
+    font-family: var(--font);
+  }
+  body.print-doc #print-frame .report-wrap {
+    display: block !important;
+    max-width: none;
+    background: #fff;
+    color: #16141f;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.print-doc #print-frame .metric,
+  body.print-doc #print-frame .rpt-card,
+  body.print-doc #print-frame .fore-wrap,
+  body.print-doc #print-frame .fore-metric {
+    background: #fff;
+    color: #16141f;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+  body.print-doc #print-frame .report-title,
+  body.print-doc #print-frame .rpt-card-title,
+  body.print-doc #print-frame .metric-value,
+  body.print-doc #print-frame .fore-value,
+  body.print-doc #print-frame .insights-table td,
+  body.print-doc #print-frame .bug-item,
+  body.print-doc #print-frame .insights-print,
+  body.print-doc #print-frame .pill,
+  body.print-doc #print-frame .obs-tag {
+    color: #16141f;
+  }
+  body.print-doc #print-frame .metric-label,
+  body.print-doc #print-frame .report-logo,
+  body.print-doc #print-frame .report-period,
+  body.print-doc #print-frame .report-footer,
+  body.print-doc #print-frame .fore-note,
+  body.print-doc #print-frame .fore-label,
+  body.print-doc #print-frame .fore-sub,
+  body.print-doc #print-frame .metric-sub,
+  body.print-doc #print-frame .cat-meta,
+  body.print-doc #print-frame .obs-text,
+  body.print-doc #print-frame .insights-list,
+  body.print-doc #print-frame .insights-table th,
+  body.print-doc #print-frame .sub {
+    color: #5e5e6a;
+  }
+  body.print-doc #print-frame .pill,
+  body.print-doc #print-frame .obs-tag { border-color: #c8c8d0; }
+  body.print-doc #print-frame .bug-item,
+  body.print-doc #print-frame .obs-item,
+  body.print-doc #print-frame .insights-table th,
+  body.print-doc #print-frame .insights-table td { border-color: #e4e4e7; }
+  body.print-doc #print-frame .cat-bar { background: #e4e4e7; }
+  body.print-doc #print-frame .insights-print {
+    white-space: pre-wrap;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  body.print-doc #print-frame .metrics { grid-template-columns: repeat(4, 1fr); }
+  body.print-doc #print-frame .two-col { grid-template-columns: 1fr 1fr; }
+  body { background: #fff; color: #16141f; padding-top: 0; }
   .card, .metric, .rpt-card, .fore-wrap { box-shadow: none; background: white; color: #111; }
   @page { margin: 12mm; }
 }

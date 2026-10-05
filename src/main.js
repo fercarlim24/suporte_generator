@@ -19,7 +19,7 @@ import {
 import { initAnalytics, openAnalyticsScreen } from './lib/analytics.js';
 import { refreshNavBadges, renderHome } from './lib/home.js';
 import { goTo, renderSync, startShell } from './lib/shell.js';
-import { initSuporte, resetSuporteView } from './lib/suporte.js';
+import { initSuporte, printSuporteReport, resetSuporteView } from './lib/suporte.js';
 import { initHoras, showHorasEditor, syncHorasToPeriod } from './lib/horas.js';
 import {
   inheritPreviousOp,
@@ -41,7 +41,7 @@ function bindSuporteActions() {
   document.getElementById('btn-suporte-reset')?.addEventListener('click', resetSuporteView);
   document.getElementById('btn-suporte-save')?.addEventListener('click', () => histSave('suporte'));
   document.getElementById('btn-suporte-json')?.addEventListener('click', () => exportReportJson('suporte'));
-  document.getElementById('btn-suporte-pdf')?.addEventListener('click', () => window.print());
+  document.getElementById('btn-suporte-pdf')?.addEventListener('click', () => printSuporteReport());
 }
 
 function bindHorasActions() {

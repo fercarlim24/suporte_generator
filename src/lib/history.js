@@ -368,10 +368,10 @@ export function histPrintCurrent() {
   frame.innerHTML = isDark
     ? `<div style="font-family:Outfit,system-ui,sans-serif;font-size:13px;background:#14151a;color:#f2f2f4;padding:10px;">${html}</div>`
     : `<div style="font-family:Outfit,system-ui,sans-serif;font-size:13px;background:#f4f4f5;color:#16141f;padding:32px;">${html}</div>`;
-  document.body.classList.add('ph');
+  document.body.classList.add('print-doc');
   window.print();
   setTimeout(() => {
-    document.body.classList.remove('ph');
+    document.body.classList.remove('print-doc');
     frame.innerHTML = '';
   }, 500);
 }

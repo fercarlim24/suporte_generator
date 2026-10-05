@@ -609,6 +609,39 @@ export function resetSuporteView() {
   setSuporteStep(1);
 }
 
+export function printSuporteReport() {
+  const source = document.getElementById('reportWrap');
+  const frame = document.getElementById('print-frame');
+  if (!source || !frame) return;
+
+  const liveFields = [...source.querySelectorAll('textarea')];
+  const clone = source.cloneNode(true);
+  clone.classList.add('active');
+  clone.removeAttribute('id');
+  clone.querySelectorAll('.np, .report-actions').forEach((el) => el.remove());
+  clone.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+  clone.querySelectorAll('.insights-title').forEach((el) => {
+    el.textContent = el.textContent.replace(/\s*\(editável\)\s*$/u, '');
+  });
+  clone.querySelectorAll('textarea').forEach((area, index) => {
+    const block = document.createElement('div');
+    block.className = 'insights-print';
+    block.textContent = liveFields[index]?.value || '';
+    area.replaceWith(block);
+  });
+
+  frame.replaceChildren(clone);
+  document.body.classList.add('print-doc');
+
+  const cleanup = () => {
+    document.body.classList.remove('print-doc');
+    frame.replaceChildren();
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  window.print();
+}
+
 export function loadSuporteDemo() {
   const demo = [
     { CARD_NAME: 'Ajuste no cadastro de fornecedor', TAGS: 'AJUSTES,TICKET FECHADO', COLOR: 'green' },
@@ -672,7 +705,7 @@ export function initSuporte() {
   document.getElementById('btn-suporte-goto-export')?.addEventListener('click', () => {
     if (currentSuporteData) setSuporteStep(3);
   });
-  document.getElementById('btn-suporte-print')?.addEventListener('click', () => window.print());
+  document.getElementById('btn-suporte-print')?.addEventListener('click', () => printSuporteReport());
   document.getElementById('btn-suporte-history')?.addEventListener('click', () => {
     import('./shell.js').then(({ goTo }) => goTo('hist'));
   });
