@@ -1,144 +1,514 @@
-import { histRefreshFromCloud, getSupportReportEntries } from './history.js';
-import { getEntryReportMonth, reportMonthLabel } from './report-period.js';
-import { escapeHtml } from './utils.js';
+import { syncGa } from './api.js';
+import { getState, hrefFor, periodChoices, setState, shiftMonth } from './app-state.js';
+import { loadProductPulse } from './bi.js';
+import { refreshNavBadges } from './home.js';
+import { gaFromCloud, getPulse, metabaseFromCloud } from './pulse.js';
+import { reportMonthLabel } from './report-period.js';
+import { goTo, hasCloudHost, renderSync } from './shell.js';
 
-function monthLabel(key) {
-  return reportMonthLabel(key) || key;
+const TABS = [
+  ['pulse', 'Pulse'],
+  ['suporte', 'Suporte'],
+  ['uso', 'Uso (GA)'],
+  ['esforco', 'Esforço'],
+  ['contas', 'Contas'],
+  ['qualitativo', 'Qualitativo'],
+];
+
+let sprintFilter = '';
+let cloudExtras = { ga: null, metabase: null };
+let syncing = false;
+let syncError = '';
+let pulseLoadId = 0;
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
 }
 
-function aggregateSupportReports(entries) {
-  const map = {};
-  entries.forEach((e) => {
-    const k = getEntryReportMonth(e);
-    if (!k) return;
-    const d = e.payload.data || {};
-    map[k] = map[k] || {
-      month: k,
-      reports: 0,
-      tickets: 0,
-      closed: 0,
-      bugs: 0,
-      uniqueContacts: 0,
-    };
-    map[k].reports += 1;
-    map[k].tickets += Number(d.realTickets || 0);
-    map[k].closed += Number(d.closed || 0);
-    map[k].bugs += Number((d.bugs || []).length);
-    map[k].uniqueContacts += Number(d.uniqueContacts || 0);
+function monthTitle(key) {
+  const label = reportMonthLabel(key) || key;
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : key;
+}
+
+function monthShort(key) {
+  const [y, m] = String(key).split('-').map(Number);
+  if (!y || !m) return key;
+  return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+}
+
+function formatWhen(iso) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function minutesAgo(iso) {
+  if (!iso) return null;
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  return Number.isFinite(mins) ? Math.max(0, mins) : null;
+}
+
+function freshnessText(item, period) {
+  if (item.source === 'Suporte' && !item.ok) return `sem CSV de ${monthTitle(period)}`;
+  if (item.source === 'GA' && !item.ok) return 'não conectado';
+  if (item.source === 'Metabase' && !item.ok) return 'não configurado';
+  if ((item.source === 'GA' || item.source === 'Metabase') && item.ok) {
+    const mins = minutesAgo(item.asOf);
+    return mins == null ? 'sync' : `há ${mins} min`;
+  }
+  if (!item.ok) return 'sem lançamento';
+  return formatWhen(item.asOf) || 'salvo';
+}
+
+function seg(name, options, selected, onChange) {
+  const wrap = el('div', 'seg');
+  wrap.setAttribute('role', 'radiogroup');
+  options.forEach(([value, label]) => {
+    const option = el('label', 'seg-opt');
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = name;
+    input.value = value;
+    input.checked = value === selected;
+    input.addEventListener('change', async () => {
+      if (input.checked) await onChange(value);
+    });
+    option.append(input, document.createTextNode(label));
+    wrap.append(option);
   });
-
-  const months = Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
-  return months.map((m) => ({
-    ...m,
-    resolutionPct: m.tickets ? Math.round((m.closed / m.tickets) * 100) : 0,
-  }));
+  return wrap;
 }
 
-function renderBars(targetId, rows, field, colorClass = '') {
-  const el = document.getElementById(targetId);
-  if (!el) return;
-  if (!rows.length) {
-    el.innerHTML = '<div class="analytics-empty">Sem dados suficientes para gerar gráfico.</div>';
+function showValue(kpi) {
+  if (!kpi || kpi.value == null || kpi.missing) return '—';
+  return String(kpi.value);
+}
+
+function kpiCard(key, kpi) {
+  const card = el('article', 'card');
+  const label = el('div', 'kpi-label');
+  const names = {
+    mau: 'MAU',
+    tickets: 'Tickets',
+    bugs: 'Bugs',
+    ticketsPerMau: 'Tickets / 1k MAU',
+    devHours: 'Horas dev',
+    tenants: 'Tenants ativos',
+    rag: 'Risco RAG médio',
+  };
+  label.append(document.createTextNode(names[key] || key));
+  if (key === 'mau') {
+    const tip = el('button', 'info-tip');
+    tip.type = 'button';
+    tip.setAttribute('aria-describedby', 'tip-mau');
+    tip.append(el('i', 'ph ph-info'));
+    const tooltip = el(
+      'span',
+      'tooltip',
+      'Monthly Active Users — usuários únicos que usaram o produto ao menos uma vez no mês. Fonte: Google Analytics.',
+    );
+    tooltip.id = 'tip-mau';
+    tooltip.setAttribute('role', 'tooltip');
+    tip.append(tooltip);
+    label.append(tip);
+  }
+  card.append(label);
+  card.append(el('div', kpi?.value == null || kpi?.missing ? 'kpi-value missing' : 'kpi-value', showValue(kpi)));
+  card.append(el('div', 'kpi-sub', kpi?.sub || ''));
+  card.append(el('div', 'kpi-source', kpi?.source || ''));
+  return card;
+}
+
+function pushRoute() {
+  const href = hrefFor(getState());
+  if (location.hash !== href) location.hash = href.slice(1);
+  else renderPulse();
+}
+
+function syncButton() {
+  const button = el('button', 'btn btn-secondary', syncing ? 'Sincronizando…' : 'Sincronizar GA');
+  button.type = 'button';
+  button.disabled = syncing || hasCloudHost() === false;
+  button.addEventListener('click', () => {
+    refreshGa();
+  });
+  return button;
+}
+
+function gaBanner() {
+  const banner = el('div', 'banner');
+  const copy = el('div');
+  copy.append(el('p', '', 'Conecte o Google Analytics para ver MAU, uso por feature e tickets por MAU'));
+  if (syncError) copy.append(el('p', 'sub', syncError));
+  banner.append(copy);
+  const actions = el('div', 'report-actions');
+  actions.append(syncButton());
+  const usage = el('button', 'btn btn-ghost', 'Ver uso');
+  usage.type = 'button';
+  usage.addEventListener('click', () => {
+    setState({ pulseTab: 'uso' });
+    pushRoute();
+  });
+  actions.append(usage);
+  banner.append(actions);
+  return banner;
+}
+
+async function refreshGa() {
+  if (syncing) return;
+  if (hasCloudHost() === false) {
+    syncError = 'Sem nuvem neste ambiente.';
+    renderPulse();
     return;
   }
-  const max = Math.max(...rows.map((r) => Number(r[field] || 0)), 1);
-  el.innerHTML = `<div class="bar-chart">${rows
-    .map((r) => {
-      const val = Number(r[field] || 0);
-      const h = Math.max(2, Math.round((val / max) * 150));
-      return `
-        <div class="bar-col">
-          <div class="bar-val">${val}${field === 'resolutionPct' ? '%' : ''}</div>
-          <div class="bar ${colorClass}" style="height:${h}px"></div>
-          <div class="bar-label">${monthLabel(r.month)}</div>
-        </div>`;
-    })
-    .join('')}</div>`;
-}
-
-function renderTable(rows) {
-  const wrap = document.getElementById('analytics-table-wrap');
-  if (!wrap) return;
-  if (!rows.length) {
-    wrap.innerHTML = '<div class="analytics-empty">Ainda não existem relatórios de suporte salvos.</div>';
-    return;
+  const request = pulseLoadId;
+  syncing = true;
+  syncError = '';
+  renderPulse();
+  try {
+    const result = await syncGa();
+    if (request !== pulseLoadId) return;
+    if (result?.reason === 'not_configured') syncError = 'Google Analytics não configurado no servidor.';
+    else if (result?.ok === false) syncError = result.error || 'Falha ao sincronizar o Google Analytics.';
+  } catch (err) {
+    if (request !== pulseLoadId) return;
+    syncError = err.message || 'Falha ao sincronizar o Google Analytics.';
+  } finally {
+    syncing = false;
   }
-  wrap.innerHTML = `
-    <table class="analytics-table">
-      <thead>
-        <tr>
-          <th>Mês</th>
-          <th>Relatórios</th>
-          <th>Tickets</th>
-          <th>Fechados</th>
-          <th>Fechamento</th>
-          <th>Bugs</th>
-          <th>Usuários únicos</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows
-          .map(
-            (r) => `
-            <tr>
-              <td>${escapeHtml(monthLabel(r.month))}</td>
-              <td>${r.reports}</td>
-              <td>${r.tickets}</td>
-              <td>${r.closed}</td>
-              <td>${r.resolutionPct}%</td>
-              <td>${r.bugs}</td>
-              <td>${r.uniqueContacts}</td>
-            </tr>`,
-          )
-          .join('')}
-      </tbody>
-    </table>`;
+  if (request !== pulseLoadId) return;
+  const { period, product } = getState();
+  const extras = await loadCloudExtras(period, product || 'OS2');
+  if (request !== pulseLoadId) return;
+  cloudExtras = extras;
+  renderPulse();
 }
 
-function renderKpis(rows) {
-  const el = document.getElementById('analytics-kpis');
-  if (!el) return;
-  if (!rows.length) {
-    el.innerHTML = '';
-    return;
+function renderPulsePanel(pulse, product) {
+  const panel = el('div');
+  const kpis = el('div', 'pulse-kpis');
+  ['mau', 'tickets', 'bugs', 'ticketsPerMau', 'devHours', 'tenants', 'rag'].forEach((key) => {
+    kpis.append(kpiCard(key, pulse.kpis[key]));
+  });
+  panel.append(kpis);
+
+  if (!pulse.freshness.find((item) => item.source === 'GA')?.ok) {
+    panel.append(gaBanner());
   }
-  const totalReports = rows.reduce((a, r) => a + r.reports, 0);
-  const totalTickets = rows.reduce((a, r) => a + r.tickets, 0);
-  const totalClosed = rows.reduce((a, r) => a + r.closed, 0);
-  const totalBugs = rows.reduce((a, r) => a + r.bugs, 0);
-  const totalContacts = rows.reduce((a, r) => a + r.uniqueContacts, 0);
-  const avgResolution = totalTickets ? Math.round((totalClosed / totalTickets) * 100) : 0;
 
-  el.innerHTML = `
-    <div class="metric"><div class="metric-label">Relatórios consolidados</div><div class="metric-value">${totalReports}</div></div>
-    <div class="metric"><div class="metric-label">Tickets no período</div><div class="metric-value">${totalTickets}</div></div>
-    <div class="metric"><div class="metric-label">Resolução média</div><div class="metric-value">${avgResolution}%</div></div>
-    <div class="metric"><div class="metric-label">Bugs / Usuários únicos</div><div class="metric-value">${totalBugs} / ${totalContacts}</div></div>
-  `;
+  const charts = el('div', 'chart-grid');
+  charts.append(mauChart(pulse), effortChart(pulse, product));
+  panel.append(charts);
+
+  if (pulse.insights.length) {
+    const grid = el('div', 'insight-grid');
+    pulse.insights.forEach((insight) => grid.append(insightCard(insight)));
+    panel.append(grid);
+  }
+  return panel;
 }
 
-export async function openAnalyticsScreen() {
-  await histRefreshFromCloud();
-  const supportEntries = getSupportReportEntries();
-  const rows = aggregateSupportReports(supportEntries);
+function mauChart(pulse) {
+  const card = el('article', 'card');
+  card.append(el('h4', '', 'Tickets por 1k MAU'));
+  const points = pulse.trend.filter((row) => row.ticketsPerMau != null);
+  if (!points.length) {
+    card.append(el('p', 'sub', 'Conecte o Google Analytics para ver tickets por MAU.'));
+    return card;
+  }
+  const max = Math.max(...points.map((row) => row.ticketsPerMau), 1);
+  const chart = el('div', 'bar-chart');
+  pulse.trend.forEach((row) => {
+    const col = el('div', 'bar-col');
+    col.append(el('div', 'bar-val', row.ticketsPerMau == null ? '—' : String(row.ticketsPerMau)));
+    const bar = el('div', row.current ? 'bar current' : 'bar');
+    const height = row.ticketsPerMau == null ? 2 : Math.max(4, Math.round((row.ticketsPerMau / max) * 120));
+    bar.style.height = `${height}px`;
+    col.append(bar, el('div', 'bar-label', monthShort(row.period)));
+    chart.append(col);
+  });
+  card.append(chart);
+  return card;
+}
 
-  const periodEl = document.getElementById('analytics-period');
-  if (periodEl) {
-    if (rows.length) {
-      periodEl.textContent = `De ${monthLabel(rows[0].month)} até ${monthLabel(rows[rows.length - 1].month)}`;
-    } else {
-      periodEl.textContent = 'Sem histórico de suporte suficiente';
+function effortChart(pulse, product) {
+  const card = el('article', 'card');
+  card.append(el('h4', '', 'Onde o time gastou tempo'));
+  const rows = pulse.effort
+    .map((row) => ({ ...row, minutes: product === 'FORE' ? row.fore : row.os2 }))
+    .filter((row) => row.minutes > 0);
+  if (!rows.length) {
+    card.append(el('p', 'sub', 'Sem horas neste período. O lançamento continua na tela Horas.'));
+    return card;
+  }
+  const max = Math.max(...rows.map((row) => row.minutes), 1);
+  const list = el('div', 'h-bars');
+  rows
+    .sort((a, b) => b.minutes - a.minutes)
+    .forEach((row) => {
+      const line = el('div', 'h-bar-row');
+      const label = row.category === 'BUG' ? 'Bugfix' : row.category;
+      line.append(el('span', '', label));
+      const track = el('div', 'h-bar-track');
+      const fill = el('div', row.category === 'BUG' ? 'h-bar-fill accent' : 'h-bar-fill');
+      fill.style.width = `${Math.round((row.minutes / max) * 100)}%`;
+      track.append(fill);
+      const hours = Math.round((row.minutes / 60) * 10) / 10;
+      line.append(track, el('span', '', `${hours}h`));
+      list.append(line);
+    });
+  card.append(list);
+  return card;
+}
+
+function insightCard(insight) {
+  const card = el('article', 'card');
+  card.append(el('div', 'insight-kicker', insight.kicker));
+  card.append(el('div', 'insight-metric', insight.metric));
+  card.append(el('p', 'insight-context', insight.context));
+  const button = el('button', 'btn btn-ghost', insight.cta);
+  button.type = 'button';
+  button.addEventListener('click', () => {
+    if (insight.switchProduct) {
+      setState({ product: insight.switchProduct, screen: 'pulse', pulseTab: 'pulse' });
+      pushRoute();
+      return;
     }
+    setState({ pulseTab: insight.tab || 'pulse' });
+    pushRoute();
+  });
+  card.append(button);
+  return card;
+}
+
+function suportePanel(pulse) {
+  if (pulse.kpis.tickets.missing === 'csv') {
+    const box = el('div', 'card');
+    box.append(el('h4', '', 'Sem CSV neste mês'));
+    box.append(el('p', 'sub', 'O Pulse continua com as outras fontes. O upload do Drag continua manual.'));
+    const button = el('button', 'btn btn-primary', 'Enviar CSV');
+    button.type = 'button';
+    button.addEventListener('click', () => goTo('suporte'));
+    box.append(button);
+    return box;
+  }
+  const wrap = el('div');
+  wrap.append(el('p', 'sub', `${pulse.kpis.tickets.value} tickets · ${pulse.kpis.tickets.sub}`));
+  return wrap;
+}
+
+function usoPanel(pulse) {
+  if (!pulse.freshness.find((item) => item.source === 'GA')?.ok) return gaBanner();
+  if (!pulse.features.length) {
+    return el('p', 'sub', 'GA conectado, sem uso por feature neste recorte.');
+  }
+  return featureTable(pulse.features);
+}
+
+function featureTable(features) {
+  const table = el('table', 'table');
+  const head = document.createElement('thead');
+  const hr = document.createElement('tr');
+  ['Feature', 'Eventos', 'Δ uso', 'Tickets', ''].forEach((label) => hr.append(el('th', '', label)));
+  head.append(hr);
+  const body = document.createElement('tbody');
+  features.forEach((feature) => {
+    const tr = document.createElement('tr');
+    [feature.feature_key, String(feature.events), feature.deltaUsage == null ? '—' : String(feature.deltaUsage), String(feature.tickets)].forEach(
+      (text) => tr.append(el('td', '', text)),
+    );
+    const tag = document.createElement('td');
+    if (feature.pain) tag.append(el('span', 'tag tag-accent', 'Dor × uso'));
+    tr.append(tag);
+    body.append(tr);
+  });
+  table.append(head, body);
+  return table;
+}
+
+function esforcoPanel(pulse) {
+  if (!pulse.effort.length) return el('p', 'sub', 'Sem horas neste período.');
+  const table = el('table', 'table');
+  const head = document.createElement('thead');
+  const hr = document.createElement('tr');
+  ['Categoria', 'OS2', 'FORE'].forEach((label) => hr.append(el('th', '', label)));
+  head.append(hr);
+  const body = document.createElement('tbody');
+  pulse.effort.forEach((row) => {
+    const tr = document.createElement('tr');
+    tr.append(el('td', '', row.category === 'BUG' ? 'Bugfix' : row.category));
+    tr.append(el('td', '', String(Math.round((row.os2 / 60) * 10) / 10)));
+    tr.append(el('td', '', String(Math.round((row.fore / 60) * 10) / 10)));
+    body.append(tr);
+  });
+  table.append(head, body);
+  return table;
+}
+
+function contasPanel(pulse) {
+  if (!pulse.freshness.find((item) => item.source === 'Metabase')?.ok) {
+    return el('p', 'sub', 'Metabase não configurado.');
+  }
+  if (!pulse.tenants.length) return el('p', 'sub', 'Metabase conectado, sem contas neste recorte.');
+  const table = el('table', 'table');
+  const head = document.createElement('thead');
+  const hr = document.createElement('tr');
+  ['Tenant', 'Δ uso', 'Δ tickets', 'RAG', ''].forEach((label) => hr.append(el('th', '', label)));
+  head.append(hr);
+  const body = document.createElement('tbody');
+  pulse.tenants.forEach((tenant) => {
+    const tr = document.createElement('tr');
+    [tenant.tenant, tenant.deltaUsage == null ? '—' : String(tenant.deltaUsage), tenant.deltaTickets == null ? '—' : String(tenant.deltaTickets), tenant.rag || '—'].forEach(
+      (text) => tr.append(el('td', '', text)),
+    );
+    const tag = document.createElement('td');
+    tag.append(el('span', tenant.risk ? 'tag tag-accent' : 'tag tag-neutral', tenant.risk ? 'Em risco' : 'Estável'));
+    tr.append(tag);
+    body.append(tr);
+  });
+  table.append(head, body);
+  return table;
+}
+
+function qualitativoPanel(pulse) {
+  if (!pulse.rag.length && !pulse.risks.length) return el('p', 'sub', 'Nenhum one pager neste período.');
+  const wrap = el('div', 'chart-grid');
+  const rag = el('article', 'card');
+  rag.append(el('h4', '', 'RAG por frente'));
+  pulse.rag.forEach((row) => {
+    const line = el('p', 'sub');
+    line.textContent = `${row.front}: ${row.label}`;
+    rag.append(line);
+  });
+  const risks = el('article', 'card');
+  risks.append(el('h4', '', 'Riscos da semana'));
+  if (!pulse.risks.length) risks.append(el('p', 'sub', 'Nenhum risco descrito.'));
+  pulse.risks.forEach((risk) => {
+    const line = el('p', '');
+    line.textContent = `${risk.level}: ${risk.text}`;
+    risks.append(line);
+  });
+  wrap.append(rag, risks);
+  return wrap;
+}
+
+function panelFor(tab, pulse, product) {
+  if (tab === 'suporte') return suportePanel(pulse);
+  if (tab === 'uso') return usoPanel(pulse);
+  if (tab === 'esforco') return esforcoPanel(pulse);
+  if (tab === 'contas') return contasPanel(pulse);
+  if (tab === 'qualitativo') return qualitativoPanel(pulse);
+  return renderPulsePanel(pulse, product);
+}
+
+export function renderPulse() {
+  const root = document.getElementById('pulse-root');
+  if (!root) return;
+  const state = getState();
+  const product = state.product || 'OS2';
+  const period = state.period;
+  const pulse = getPulse({
+    product,
+    period,
+    ga: cloudExtras.ga,
+    metabase: cloudExtras.metabase,
+  });
+  root.replaceChildren();
+
+  const head = el('header', 'page-head');
+  head.append(el('div', 'kicker', `Product Pulse · ${product}`));
+  const row = el('div', 'head-row');
+  row.append(el('h2', '', `Como está o ${product} em ${monthTitle(period)}?`));
+  const filters = el('div', 'filters');
+  filters.append(seg('pulse-period', periodChoices(period).map((key) => [key, monthShort(key)]), period, async (value) => {
+    setState({ period: value });
+    refreshNavBadges();
+    await openAnalyticsScreen();
+  }));
+  filters.append(seg('pulse-product', [['OS2', 'OS2'], ['FORE', 'FORE']], product, (value) => {
+    setState({ product: value, screen: 'pulse' });
+    pushRoute();
+  }));
+  const sprint = el('select', 'input');
+  sprint.setAttribute('aria-label', 'Sprint');
+  const empty = document.createElement('option');
+  empty.value = '';
+  empty.textContent = 'Sprint';
+  sprint.append(empty);
+  sprint.value = sprintFilter;
+  sprint.addEventListener('change', () => {
+    sprintFilter = sprint.value;
+    renderPulse();
+  });
+  filters.append(sprint);
+  filters.append(syncButton());
+  row.append(filters);
+  head.append(row);
+  if (syncError && pulse.freshness.find((item) => item.source === 'GA')?.ok) {
+    head.append(el('p', 'sub', syncError));
+  }
+  root.append(head);
+
+  if (hasCloudHost() === false) {
+    root.append(el('p', 'pulse-note', 'Sem nuvem: o Pulse mostra só o que está neste navegador. GA e Metabase ficam vazios.'));
   }
 
-  renderKpis(rows);
-  renderBars('analytics-chart-volume', rows, 'tickets');
-  renderBars('analytics-chart-resolution', rows, 'resolutionPct', 'green');
-  renderBars('analytics-chart-bugs', rows, 'bugs', 'red');
-  renderBars('analytics-chart-contacts', rows, 'uniqueContacts', 'orange');
-  renderTable(rows);
+  const fresh = el('div', 'fresh-row');
+  pulse.freshness.forEach((item) => {
+    const badge = el('span', item.ok ? 'fresh-badge' : 'fresh-badge missing');
+    const dot = el('span', 'dot', '● ');
+    badge.append(dot, document.createTextNode(`${item.source} · ${item.mode} · ${freshnessText(item, period)}`));
+    fresh.append(badge);
+  });
+  root.append(fresh);
+
+  const tabs = el('div', 'tabs');
+  TABS.forEach(([id, label]) => {
+    const button = el('button', state.pulseTab === id ? 'tab active' : 'tab', label);
+    button.type = 'button';
+    button.addEventListener('click', () => {
+      setState({ pulseTab: id });
+      pushRoute();
+    });
+    tabs.append(button);
+  });
+  root.append(tabs);
+  root.append(panelFor(state.pulseTab || 'pulse', pulse, product));
+}
+
+async function loadCloudExtras(period, product) {
+  if (hasCloudHost() === false) return { ga: null, metabase: null };
+  try {
+    const model = await loadProductPulse({
+      from: shiftMonth(period, -5),
+      to: period,
+      product: 'ALL',
+    });
+    return {
+      ga: gaFromCloud(model),
+      metabase: metabaseFromCloud(model, product),
+    };
+  } catch {
+    return { ga: null, metabase: null };
+  }
+}
+
+export async function openAnalyticsScreen({ sync = false } = {}) {
+  const request = ++pulseLoadId;
+  await renderSync();
+  if (request !== pulseLoadId) return;
+  const { period, product } = getState();
+  const extras = await loadCloudExtras(period, product || 'OS2');
+  if (request !== pulseLoadId) return;
+  cloudExtras = extras;
+  renderPulse();
+  if (sync && hasCloudHost() === true && request === pulseLoadId) await refreshGa();
 }
 
 export function initAnalytics() {
-  document.getElementById('btn-analytics-refresh')?.addEventListener('click', openAnalyticsScreen);
+  document.getElementById('btn-analytics-refresh')?.addEventListener('click', () => renderPulse());
 }

@@ -1,8 +1,19 @@
+function headerValue(req, name) {
+  const headers = req?.headers || {};
+  const value = headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()];
+  if (Array.isArray(value)) return value[0] || '';
+  return value || '';
+}
+
 export function checkApiKey(req) {
+  const cronSecret = process.env.CRON_SECRET?.trim();
+  const authorization = headerValue(req, 'authorization');
+  if (cronSecret && authorization === `Bearer ${cronSecret}`) return { ok: true };
+
   const expected = process.env.REPORTS_API_KEY;
   if (!expected) return { ok: false, error: 'REPORTS_API_KEY não configurada no servidor' };
 
-  const header = req.headers['x-api-key'] || req.headers['X-Api-Key'];
+  const header = headerValue(req, 'x-api-key');
   if (!header || header !== expected) {
     return { ok: false, error: 'Chave de API inválida' };
   }

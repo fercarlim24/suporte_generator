@@ -9,7 +9,6 @@ import {
 } from './utils.js';
 
 const SIS_OPTIONS = ['OS2', 'FORE'];
-const WEEK_OPTIONS = ['1', '2', '3', '4', '5'];
 
 let hAllRows = [];
 let hFilterSis = 'ALL';
@@ -18,6 +17,7 @@ let hReportMonth = '';
 /** @type {Array<{ id: string, sem: string, sis: string, cat: string, timeStr: string, desc: string }>} */
 let hDraftEntries = [];
 let hEditorSaveTimer = null;
+let activeWeek = '1';
 
 function pad2(n) {
   return String(n).padStart(2, '0');
@@ -76,11 +76,22 @@ function scheduleDraftSave() {
   hEditorSaveTimer = setTimeout(saveHorasDraft, 400);
 }
 
+function readDraftStore() {
+  try {
+    return JSON.parse(localStorage.getItem(HORAS_DRAFT_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
 function saveHorasDraft() {
   try {
+    const store = readDraftStore();
+    const byMonth = { ...(store.byMonth || {}) };
+    if (hReportMonth) byMonth[hReportMonth] = hDraftEntries;
     localStorage.setItem(
       HORAS_DRAFT_KEY,
-      JSON.stringify({ reportMonth: hReportMonth, entries: hDraftEntries }),
+      JSON.stringify({ reportMonth: hReportMonth, entries: hDraftEntries, byMonth }),
     );
   } catch {
     /* ignore quota */
@@ -89,14 +100,118 @@ function saveHorasDraft() {
 
 function loadHorasDraft() {
   try {
-    const raw = JSON.parse(localStorage.getItem(HORAS_DRAFT_KEY));
-    if (!raw) return false;
+    const raw = readDraftStore();
+    if (!raw.entries && !raw.byMonth) return false;
     hReportMonth = raw.reportMonth || defaultReportMonth();
-    hDraftEntries = (raw.entries || []).map(normalizeHorasDraftEntry);
+    const source = raw.byMonth?.[hReportMonth] || raw.entries || [];
+    hDraftEntries = source.map(normalizeHorasDraftEntry);
     return true;
   } catch {
     return false;
   }
+}
+
+function hoursValue(mins) {
+  if (!mins) return '';
+  const hours = Math.round((mins / 60) * 100) / 100;
+  return String(hours);
+}
+
+function cellMinutes(week, sis, cat) {
+  return hDraftEntries
+    .filter((entry) => entry.sem === String(week) && entry.sis === sis && entry.cat === cat)
+    .reduce((sum, entry) => sum + parseTime(entry.timeStr), 0);
+}
+
+function setCellHours(week, sis, cat, raw) {
+  const prev = hDraftEntries.find((entry) => entry.sem === String(week) && entry.sis === sis && entry.cat === cat);
+  const keep = hDraftEntries.filter((entry) => !(entry.sem === String(week) && entry.sis === sis && entry.cat === cat));
+  if (String(raw || '').trim()) {
+    keep.push(
+      normalizeHorasDraftEntry({
+        id: prev?.id,
+        sem: String(week),
+        sis,
+        cat,
+        timeStr: String(raw).trim(),
+        desc: prev?.desc || '',
+      }),
+    );
+  }
+  hDraftEntries = keep;
+  scheduleDraftSave();
+}
+
+function launchedWeekCount() {
+  const weeks = new Set();
+  hDraftEntries.forEach((entry) => {
+    const week = Number(entry.sem);
+    if (week >= 1 && week <= 4 && parseTime(entry.timeStr) > 0) weeks.add(week);
+  });
+  return weeks.size;
+}
+
+function updateMatrixTotals() {
+  let os2 = 0;
+  let fore = 0;
+  CAT_ORDER.forEach((cat) => {
+    const os2Mins = cellMinutes(activeWeek, 'OS2', cat);
+    const foreMins = cellMinutes(activeWeek, 'FORE', cat);
+    os2 += os2Mins;
+    fore += foreMins;
+    const rowTotal = document.querySelector(`[data-row-total="${cat}"]`);
+    if (rowTotal) rowTotal.textContent = fmtTime(os2Mins + foreMins);
+  });
+  const os2El = document.getElementById('h-total-os2');
+  const foreEl = document.getElementById('h-total-fore');
+  const allEl = document.getElementById('h-total-all');
+  if (os2El) os2El.textContent = fmtTime(os2);
+  if (foreEl) foreEl.textContent = fmtTime(fore);
+  if (allEl) allEl.textContent = fmtTime(os2 + fore);
+  const summary = document.getElementById('h-editor-summary');
+  if (summary) summary.textContent = `${launchedWeekCount()} de 4 semanas lançadas`;
+  const copy = document.getElementById('h-copy-week');
+  if (copy) copy.disabled = Number(activeWeek) <= 1;
+}
+
+export function syncHorasToPeriod(period) {
+  if (!period) return;
+  if (period !== hReportMonth) {
+    saveHorasDraft();
+    const store = readDraftStore();
+    hReportMonth = period;
+    hDraftEntries = (store.byMonth?.[period] || []).map(normalizeHorasDraftEntry);
+  }
+  const monthInput = document.getElementById('h-month-input');
+  if (monthInput) monthInput.value = hReportMonth;
+  renderHorasEditor();
+}
+
+export function copyPreviousHorasWeek() {
+  const prev = String(Number(activeWeek) - 1);
+  if (Number(activeWeek) <= 1) return;
+  CAT_ORDER.forEach((cat) => {
+    SIS_OPTIONS.forEach((sis) => {
+      const mins = cellMinutes(prev, sis, cat);
+      setCellHours(activeWeek, sis, cat, hoursValue(mins));
+    });
+  });
+  renderHorasEditor();
+}
+
+export async function saveHorasWeek() {
+  const monthInput = document.getElementById('h-month-input');
+  hReportMonth = monthInput?.value || hReportMonth || defaultReportMonth();
+  syncRowsFromDraft();
+  if (!hAllRows.length) {
+    alert('Lance pelo menos uma hora antes de salvar a semana.');
+    return null;
+  }
+  saveHorasDraft();
+  const { histAutoSave } = await import('./history.js');
+  const entry = await histAutoSave('horas');
+  renderHorasEditor();
+  return entry;
 }
 
 function syncRowsFromDraft() {
@@ -160,61 +275,65 @@ export function generateHorasReport() {
   return { rows: hAllRows, filterSis: hFilterSis, filterSem: hFilterSem };
 }
 
+function renderWeekSeg() {
+  const seg = document.getElementById('h-week-seg');
+  if (!seg) return;
+  seg.replaceChildren();
+  ['1', '2', '3', '4'].forEach((week) => {
+    const label = document.createElement('label');
+    label.className = 'seg-opt';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'horas-week';
+    input.value = week;
+    input.checked = activeWeek === week;
+    input.addEventListener('change', () => {
+      if (!input.checked) return;
+      activeWeek = week;
+      renderHorasEditor();
+    });
+    label.append(input, document.createTextNode(`S${week}`));
+    seg.append(label);
+  });
+}
+
 function renderHorasEditor() {
   const monthInput = document.getElementById('h-month-input');
   if (monthInput && !monthInput.value) monthInput.value = hReportMonth || defaultReportMonth();
+  renderWeekSeg();
 
-  const tbody = document.getElementById('h-entries-body');
+  const tbody = document.getElementById('h-matrix-body');
   if (!tbody) return;
-
-  if (!hDraftEntries.length) hDraftEntries.push(blankEntry());
-
-  tbody.innerHTML = hDraftEntries
-    .map((entry) => {
-      const weekOpts = WEEK_OPTIONS.map(
-        (w) =>
-          `<option value="${w}"${entry.sem === w ? ' selected' : ''}>S${w}</option>`,
-      ).join('');
-      const sisOpts = SIS_OPTIONS.map(
-        (s) => `<option value="${s}"${entry.sis === s ? ' selected' : ''}>${s}</option>`,
-      ).join('');
-      const catOpts = CAT_ORDER.map(
-        (c) => `<option value="${c}"${entry.cat === c ? ' selected' : ''}>${c}</option>`,
-      ).join('');
-      return `<tr data-id="${entry.id}">
-        <td><select class="h-field" data-field="sem">${weekOpts}</select></td>
-        <td><select class="h-field" data-field="sis">${sisOpts}</select></td>
-        <td><select class="h-field" data-field="cat">${catOpts}</select></td>
-        <td><input class="h-field h-time" data-field="timeStr" type="text" value="${escapeHtml(entry.timeStr)}" placeholder="1:30"></td>
-        <td><input class="h-field h-desc" data-field="desc" type="text" value="${escapeHtml(entry.desc)}" placeholder="Descrição da atividade"></td>
-        <td><button type="button" class="h-row-remove" data-remove="${entry.id}" title="Remover">✕</button></td>
-      </tr>`;
-    })
-    .join('');
-
-  const totalMins = hDraftEntries.reduce((a, e) => a + parseTime(e.timeStr), 0);
-  const summary = document.getElementById('h-editor-summary');
-  if (summary) {
-    summary.textContent = `${hDraftEntries.length} linha(s) · ${fmtTime(totalMins)} no rascunho`;
-  }
-}
-
-function onEditorInput(e) {
-  const field = e.target.dataset?.field;
-  if (!field) return;
-  const row = e.target.closest('tr[data-id]');
-  if (!row) return;
-  const entry = hDraftEntries.find((x) => x.id === row.dataset.id);
-  if (!entry) return;
-  entry[field] = e.target.value;
-  scheduleDraftSave();
-  if (field === 'timeStr') {
-    const summary = document.getElementById('h-editor-summary');
-    if (summary) {
-      const totalMins = hDraftEntries.reduce((a, x) => a + parseTime(x.timeStr), 0);
-      summary.textContent = `${hDraftEntries.length} linha(s) · ${fmtTime(totalMins)} no rascunho`;
-    }
-  }
+  tbody.replaceChildren();
+  CAT_ORDER.forEach((cat) => {
+    const tr = document.createElement('tr');
+    const name = document.createElement('td');
+    name.textContent = cat;
+    tr.append(name);
+    SIS_OPTIONS.forEach((sis) => {
+      const td = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = '0.25';
+      input.className = 'input';
+      input.setAttribute('aria-label', `${cat} ${sis}`);
+      const mins = cellMinutes(activeWeek, sis, cat);
+      input.value = hoursValue(mins);
+      input.addEventListener('input', () => {
+        setCellHours(activeWeek, sis, cat, input.value);
+        updateMatrixTotals();
+      });
+      td.append(input);
+      tr.append(td);
+    });
+    const total = document.createElement('td');
+    total.className = 'matrix-total';
+    total.dataset.rowTotal = cat;
+    tr.append(total);
+    tbody.append(tr);
+  });
+  updateMatrixTotals();
 }
 
 export function renderHorasReport() {
@@ -236,8 +355,8 @@ export function renderHorasReport() {
 
   document.getElementById('h-metrics').innerHTML = `
     <div class="metric"><div class="metric-label">Total horas mês</div><div class="metric-value time-val">${fmtTime(totalMins)}</div><div class="metric-sub">${rows.length} lançamentos</div></div>
-    <div class="metric"><div class="metric-label">OS2</div><div class="metric-value time-val" style="color:#3730a3">${fmtTime(os2Mins)}</div><div class="metric-sub">${Math.round((os2Mins / totalMins) * 100) || 0}% do total</div></div>
-    <div class="metric"><div class="metric-label">FORE</div><div class="metric-value time-val" style="color:#854d0e">${fmtTime(foreMins)}</div><div class="metric-sub">${Math.round((foreMins / totalMins) * 100) || 0}% do total</div></div>
+    <div class="metric"><div class="metric-label">OS2</div><div class="metric-value time-val">${fmtTime(os2Mins)}</div><div class="metric-sub">${Math.round((os2Mins / totalMins) * 100) || 0}% do total</div></div>
+    <div class="metric"><div class="metric-label">FORE</div><div class="metric-value time-val">${fmtTime(foreMins)}</div><div class="metric-sub">${Math.round((foreMins / totalMins) * 100) || 0}% do total</div></div>
     <div class="metric"><div class="metric-label">Semanas</div><div class="metric-value">${semanas.length}</div><div class="metric-sub">${semanas.map((s) => 'S' + s).join(' · ')}</div></div>
   `;
 
@@ -260,7 +379,7 @@ export function renderHorasReport() {
   </tr>`);
 
   document.getElementById('h-week-table').innerHTML = `
-    <div class="rpt-card-title"><span class="dot" style="background:#60a5fa;width:8px;height:8px;border-radius:50%;display:inline-block;"></span>&nbsp;Horas por semana</div>
+    <div class="rpt-card-title"><span class="dot"></span> Horas por semana</div>
     <table class="week-table">
       <thead><tr><th>Semana</th>${sistemas.includes('OS2') ? '<th>OS2</th>' : ''}${sistemas.includes('FORE') ? '<th>FORE</th>' : ''}<th>Total</th></tr></thead>
       <tbody>${weekRows.join('')}</tbody>
@@ -279,12 +398,12 @@ export function renderHorasReport() {
       if (!known.has(r.cat) && r.cat) unk[r.cat] = (unk[r.cat] || 0) + r.mins;
     });
     Object.entries(unk).forEach(([c, m]) => cats.push({ c, m }));
-    if (!cats.length) return '<p style="font-size:12px;color:#aaa;padding:8px 0;">Sem dados.</p>';
+    if (!cats.length) return '<p class="sub">Sem dados.</p>';
     return cats
       .sort((a, b) => b.m - a.m)
       .map(({ c, m }) => {
         const pct = tot ? Math.round((m / tot) * 100) : 0;
-        const cc = CAT_COLORS[c] || { bar: '#94a3b8', cls: 'cat-other' };
+        const cc = CAT_COLORS[c] || { bar: 'var(--color-neutral-500)', cls: 'cat-other' };
         return `<div class="hcat-row">
         <span class="cat-pill ${cc.cls}">${escapeHtml(c)}</span>
         <div class="hcat-bar-wrap"><div class="hcat-bar-fill" style="width:${pct}%;background:${cc.bar};"></div></div>
@@ -299,8 +418,8 @@ export function renderHorasReport() {
       (sys) => `
     <div class="rpt-card">
       <div class="rpt-card-title">
-        <span class="dot" style="background:${sys === 'OS2' ? '#818cf8' : '#fbbf24'};width:8px;height:8px;border-radius:50%;display:inline-block;"></span>
-        &nbsp;${escapeHtml(sys)} — por categoria
+        <span class="dot"></span>
+        ${escapeHtml(sys)} / categoria
       </div>
       ${catBreakdown(sys)}
     </div>`,
@@ -331,7 +450,7 @@ export function renderHorasReport() {
     });
   });
   const sep = document.createElement('span');
-  sep.style.cssText = 'width:1px;height:16px;background:#e2e8f0;display:inline-block;margin:0 4px;';
+  sep.style.cssText = 'width:1px;height:16px;background:var(--line);display:inline-block;margin:0 4px;';
   filtersEl.appendChild(sep);
   addFilter('OS2 + FORE', hFilterSis === 'ALL', () => {
     hFilterSis = 'ALL';
@@ -438,21 +557,13 @@ export function initHoras() {
     hDraftEntries = [blankEntry()];
   }
 
-  const editor = document.getElementById('h-editor-area');
-  editor?.addEventListener('input', onEditorInput);
-  editor?.addEventListener('change', onEditorInput);
-  editor?.addEventListener('click', (e) => {
-    const removeId = e.target.closest('[data-remove]')?.dataset.remove;
-    if (removeId) removeHorasDraftRow(removeId);
-  });
-
   document.getElementById('h-month-input')?.addEventListener('change', (e) => {
-    hReportMonth = e.target.value || defaultReportMonth();
-    scheduleDraftSave();
+    syncHorasToPeriod(e.target.value || defaultReportMonth());
   });
 
-  document.getElementById('h-add-row')?.addEventListener('click', addHorasDraftRow);
   document.getElementById('h-generate-report')?.addEventListener('click', generateHorasReport);
+  document.getElementById('h-save-week')?.addEventListener('click', () => saveHorasWeek());
+  document.getElementById('h-copy-week')?.addEventListener('click', copyPreviousHorasWeek);
   document.getElementById('h-clear-draft')?.addEventListener('click', clearHorasDraft);
   document.getElementById('h-load-demo')?.addEventListener('click', loadHorasDemo);
 

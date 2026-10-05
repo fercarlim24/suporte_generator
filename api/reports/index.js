@@ -1,4 +1,5 @@
 import { checkApiKey, isBackendConfigured } from '../_lib/auth.js';
+import { etlSavedReport } from '../_lib/bi/etl.js';
 import { json, readJsonBody, getQuery } from '../_lib/http.js';
 import { getSupabase, rowToEntry, entryToRow } from '../_lib/supabase.js';
 
@@ -59,7 +60,9 @@ export default async function handler(req, res) {
         .single();
 
       if (error) throw error;
-      return json(res, 201, { report: rowToEntry(data) });
+      const saved = rowToEntry(data);
+      await etlSavedReport(supabase, saved);
+      return json(res, 201, { report: saved });
     }
 
     return json(res, 405, { error: 'Method not allowed' });

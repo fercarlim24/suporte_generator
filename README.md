@@ -2,12 +2,35 @@
 
 Gerador de relatórios internos do **LandscapeOS 2** (suporte, horas de desenvolvimento e one pager de produto).
 
+A entrada é a **seleção de produto** (OS2 ou FORE). Com um produto escolhido, a sidebar abre Início, Product Pulse, os geradores e o Histórico. O **Início** resume o mês escolhido (tickets, resolução, bugs e horas) e o status de cada gerador, só com o que já foi salvo para aquele produto e período. O estado `{ product, period, screen, pulseTab }` fica em `localStorage` e a rota é o hash (`#/OS2/inicio`, `#/FORE/pulse/uso`, …).
+
 ## Ferramentas
 
-- **Suporte** — CSV do Drag.app (Reports → Tags ou Daily Cards)
-- **Horas** — CSV ou Google Sheets publicado
-- **One Pager** — formulário semanal com roadmap
-- **Histórico** — relatórios salvos no navegador (JSON estruturado; compatível com versões antigas em HTML)
+- **Suporte** — CSV do Drag.app, em três passos: fonte, revisão e exportação (pede confirmação antes de substituir o mês)
+- **Horas** — lançamento manual numa grade categoria × OS2/FORE, com cópia da semana anterior
+- **One Pager** — resumo semanal, status por frente e roadmap de sprints editável
+- **Histórico** — relatórios do produto e do período, com filtro por tipo e exportação PDF/JSON
+- **Product Pulse (BI)** — saúde do produto no período: suporte, horas, one pager e, quando configurados, GA4 e Metabase
+
+## Product Pulse (BI)
+
+A tela **Product Pulse** substitui o antigo Analytics. Ela só lê relatórios já salvos — o upload de suporte continua manual, assim como horas e one pager. Sem CSV do mês, sem GA ou sem Metabase, os KPIs ficam em "—" e a faixa de frescor diz o que falta. Com a nuvem ativa, a aba Uso e o card Dor × uso leem o sync de GA4; a aba Contas e o card Conta em risco leem o Metabase. Com `GA_*` na Vercel, abrir o Pulse (ou o botão Sincronizar GA) chama `GET /api/bi/sync/ga`, que busca a Data API. O Metabase segue stub até o fetch existir. No GitHub Pages, sem `/api/reports`, o Pulse mostra só o navegador.
+
+- Modelo → [`docs/BI_MODEL.md`](docs/BI_MODEL.md)
+- Escopo de UX → [`docs/BI_DESIGN_SCOPE.md`](docs/BI_DESIGN_SCOPE.md)
+- Eventos GA4 → [`docs/BI_GA_EVENTS.md`](docs/BI_GA_EVENTS.md)
+- SQL → [`supabase/schema_bi.sql`](supabase/schema_bi.sql)
+
+No SQL Editor do Supabase, nesta ordem:
+
+1. [`supabase/schema.sql`](supabase/schema.sql) — tabela `reports`
+2. [`supabase/schema_bi.sql`](supabase/schema_bi.sql) — dimensões, fatos, marts
+
+Cada save na nuvem (suporte, horas, one pager) alimenta as facts. A UI lê `GET /api/bi/pulse` e `GET /api/bi/freshness` (header `x-api-key`, a mesma de `/api/reports`).
+
+Sem nuvem, ou no GitHub Pages (não serve `/api`), o Pulse usa o histórico do navegador e mostra empty state para GA e Metabase.
+
+Variáveis novas (só na Vercel, nunca no frontend): `REPORTS_PII_SALT`, `GA_PROPERTY_ID`, `GA_CLIENT_EMAIL`, `GA_PRIVATE_KEY`, `METABASE_URL`, `METABASE_API_KEY`, `METABASE_DATABASE_ID`. Ver [`.env.example`](.env.example) e [`docs/BACKEND.md`](docs/BACKEND.md).
 
 ## Desenvolvimento
 
@@ -67,7 +90,7 @@ npm test
 ```
 src/
   lib/       # lógica por módulo
-  styles/    # CSS
+  styles/    # tokens Nocturne (`tokens.css`) e componentes
   main.js    # inicialização
 legacy/      # index monolítico original (referência)
 ```

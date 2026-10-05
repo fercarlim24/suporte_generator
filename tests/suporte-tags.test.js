@@ -4,6 +4,7 @@ import {
   processSuporteRows,
   isNotificationEmailCard,
   isClosedTicket,
+  summarizeSuporteParse,
 } from '../src/lib/suporte.js';
 
 describe('parseTags multiline (Drag TAGS column)', () => {
@@ -99,6 +100,23 @@ describe('isNotificationEmailCard', () => {
     expect(isNotificationEmailCard({ tags: parseTags('EMAILS FORE') })).toBe(true);
     expect(isNotificationEmailCard({ tags: parseTags('NOTIFICAÇÃO') })).toBe(true);
     expect(isNotificationEmailCard({ tags: parseTags('FORE,EM ANDAMENTO') })).toBe(false);
+  });
+});
+
+describe('summarizeSuporteParse', () => {
+  it('separa chamados, notificações e cards só com status', () => {
+    const rows = [
+      { 'CARD NAME': 'Bug no recibo', TAGS: 'BUG' },
+      { 'CARD NAME': 'Aviso', TAGS: 'EMAILS FORE' },
+      { 'CARD NAME': 'Sem categoria', TAGS: 'EM ANDAMENTO' },
+    ];
+    const processed = processSuporteRows(rows);
+    expect(summarizeSuporteParse(rows, processed)).toEqual({
+      lines: 3,
+      tickets: 2,
+      notifications: 1,
+      noise: 1,
+    });
   });
 });
 

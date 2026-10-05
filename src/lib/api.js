@@ -62,6 +62,45 @@ export async function saveCloudReport(entry) {
   return data.report;
 }
 
+async function getBi(path) {
+  const res = await fetch(path, { headers: headers() });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Erro ${res.status}`);
+  }
+  return res.json();
+}
+
+export function fetchBiPulse({ from, to, product } = {}) {
+  const q = new URLSearchParams();
+  if (from) q.set('from', from);
+  if (to) q.set('to', to);
+  if (product) q.set('product', product);
+  const qs = q.toString();
+  return getBi(`/api/bi/pulse${qs ? `?${qs}` : ''}`);
+}
+
+export function fetchBiFreshness() {
+  return getBi('/api/bi/freshness');
+}
+
+export function fetchBiFeatures(weekStart) {
+  const q = weekStart ? `?week_start=${encodeURIComponent(weekStart)}` : '';
+  return getBi(`/api/bi/features${q}`);
+}
+
+export function fetchBiTenants(weekStart) {
+  const q = weekStart ? `?week_start=${encodeURIComponent(weekStart)}` : '';
+  return getBi(`/api/bi/tenants${q}`);
+}
+
+export async function syncGa() {
+  const res = await fetch('/api/bi/sync/ga', { headers: headers() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+  return data;
+}
+
 export async function deleteCloudReport(id) {
   const res = await fetch(`/api/reports/${id}`, {
     method: 'DELETE',
