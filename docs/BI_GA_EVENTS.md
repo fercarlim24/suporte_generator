@@ -1,6 +1,6 @@
 # Eventos GA4 — contrato para o Product Pulse
 
-O sync de GA grava `fact_product_usage_daily` (grão: dia × evento × feature × tenant). Com `GA_PROPERTY_ID`, `GA_CLIENT_EMAIL` e `GA_PRIVATE_KEY`, `GET /api/bi/sync/ga` busca os últimos 6 meses na Data API e faz o upsert. O cron horário da Vercel chama a mesma rota com `Authorization: Bearer CRON_SECRET`. `POST { "rows": [...] }` continua aceito para carga manual.
+O sync de GA grava `fact_product_usage_daily` (grão: dia × evento × feature × tenant). Com `GA_PROPERTY_ID`, `GA_CLIENT_EMAIL` e `GA_PRIVATE_KEY`, `GET /api/bi/sync/ga` busca os últimos 6 meses na Data API e faz o upsert. O cron diário da Vercel (`0 11 * * *`, 08:00 em Brasília) chama a mesma rota com `Authorization: Bearer CRON_SECRET`. O plano Hobby só permite uma execução por dia; abrir o Pulse ou o botão Sincronizar GA busca os dados na hora. `POST { "rows": [...] }` continua aceito para carga manual.
 
 Parâmetros de evento no OS2 (custom dimensions / event params):
 

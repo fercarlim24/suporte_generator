@@ -13,7 +13,7 @@ Evoluir o hub atual (Suporte · Horas · One Pager · Histórico · Analytics) p
 | Suporte (Drag) | Upload CSV **manual** | No momento do upload |
 | Horas | Lançamento manual | No save |
 | One Pager | Formulário semanal | No save |
-| Google Analytics OS2 | Sync automático | Quase tempo real (15–60 min) |
+| Google Analytics OS2 | Sync automático (cron 1×/dia no Hobby) e ao abrir o Pulse | Diário, ou na hora ao abrir o Pulse |
 | Metabase / ops | Sync automático | Quase tempo real (5–15 min) |
 
 O usuário não troca de ferramenta para cruzar uso, suporte, esforço e negócio.

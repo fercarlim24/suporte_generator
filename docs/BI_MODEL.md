@@ -22,7 +22,7 @@ Upload de suporte **continua manual**. GA e Metabase entram por sync no backend 
 | Drag CSV | Upload → parse → `fact_support_*` | No save |
 | Horas | Input manual → `fact_dev_effort` | No save |
 | One Pager | Formulário → `fact_product_health` | No save |
-| GA4 OS2 | Cron API → `fact_product_usage_daily` | 15–60 min |
+| GA4 OS2 | Cron diário (Hobby) ou ao abrir o Pulse → `fact_product_usage_daily` | 1×/dia, ou na hora ao abrir o Pulse |
 | Metabase / ops | Cron API ou SQL → `fact_business_daily` | 5–15 min |
 
 `etl_runs` + view `v_etl_freshness` guardam `as_of` por fonte (UI deve exibir).

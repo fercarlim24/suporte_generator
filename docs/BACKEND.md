@@ -97,7 +97,7 @@ Rotas (mesmo header `x-api-key` de `/api/reports`):
 | GET/POST | `/api/bi/sync/ga` |
 | GET/POST | `/api/bi/sync/metabase` |
 
-Sem as credenciais, os syncs respondem `{ "ok": false, "reason": "not_configured" }`. Com `GA_*`, `GET /api/bi/sync/ga` busca a Data API e grava `fact_product_usage_daily`. `POST` com `{ "rows": [...] }` continua para carga manual. O cron horário em `vercel.json` chama essa rota; a Vercel envia `Authorization: Bearer CRON_SECRET` quando a variável existe. O Metabase, com credenciais, ainda não busca o remoto: `POST` com `{ "rows": [...] }` grava `fact_business_daily`.
+Sem as credenciais, os syncs respondem `{ "ok": false, "reason": "not_configured" }`. Com `GA_*`, `GET /api/bi/sync/ga` busca a Data API e grava `fact_product_usage_daily`. `POST` com `{ "rows": [...] }` continua para carga manual. O cron diário em `vercel.json` (`0 11 * * *`, 08:00 em Brasília) chama essa rota; a Vercel envia `Authorization: Bearer CRON_SECRET` quando a variável existe. Abrir o Pulse ou o botão Sincronizar GA dispara o mesmo fetch na hora. O plano Hobby da Vercel só permite cron uma vez por dia. O Metabase, com credenciais, ainda não busca o remoto: `POST` com `{ "rows": [...] }` grava `fact_business_daily`.
 
 GitHub Pages não serve `/api`. O Pulse na Pages usa o histórico local e deixa GA/Metabase vazios.
 
