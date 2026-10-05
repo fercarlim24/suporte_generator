@@ -14,7 +14,7 @@ A entrada é a **seleção de produto** (OS2 ou FORE). Com um produto escolhido,
 
 ## Product Pulse (BI)
 
-A tela **Product Pulse** substitui o antigo Analytics. Ela só lê relatórios já salvos — o upload de suporte continua manual, assim como horas e one pager. Sem CSV do mês, sem GA ou sem Metabase, os KPIs ficam em "—" e a faixa de frescor diz o que falta. Com a nuvem ativa, a aba Uso e o card Dor × uso leem o sync de GA4; a aba Contas e o card Conta em risco leem o Metabase. Os syncs seguem stubs até as credenciais existirem. No GitHub Pages, sem `/api/reports`, o Pulse mostra só o navegador.
+A tela **Product Pulse** substitui o antigo Analytics. Ela só lê relatórios já salvos — o upload de suporte continua manual, assim como horas e one pager. Sem CSV do mês, sem GA ou sem Metabase, os KPIs ficam em "—" e a faixa de frescor diz o que falta. Com a nuvem ativa, a aba Uso e o card Dor × uso leem o sync de GA4; a aba Contas e o card Conta em risco leem o Metabase. Com `GA_*` na Vercel, abrir o Pulse (ou o botão Sincronizar GA) chama `GET /api/bi/sync/ga`, que busca a Data API. O Metabase segue stub até o fetch existir. No GitHub Pages, sem `/api/reports`, o Pulse mostra só o navegador.
 
 - Modelo → [`docs/BI_MODEL.md`](docs/BI_MODEL.md)
 - Escopo de UX → [`docs/BI_DESIGN_SCOPE.md`](docs/BI_DESIGN_SCOPE.md)

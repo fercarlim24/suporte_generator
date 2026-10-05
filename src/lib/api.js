@@ -94,6 +94,13 @@ export function fetchBiTenants(weekStart) {
   return getBi(`/api/bi/tenants${q}`);
 }
 
+export async function syncGa() {
+  const res = await fetch('/api/bi/sync/ga', { headers: headers() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+  return data;
+}
+
 export async function deleteCloudReport(id) {
   const res = await fetch(`/api/reports/${id}`, {
     method: 'DELETE',

@@ -1,6 +1,7 @@
 import { checkApiKey, isBackendConfigured } from '../../_lib/auth.js';
 import { gaConfig } from '../../_lib/bi/config.js';
 import { upsertUsageDaily } from '../../_lib/bi/etl.js';
+import { chunkRows, fetchGaUsage } from '../../_lib/bi/ga.js';
 import { json, readJsonBody } from '../../_lib/http.js';
 import { getSupabase } from '../../_lib/supabase.js';
 
@@ -18,22 +19,38 @@ export default async function handler(req, res) {
 
   try {
     const body = req.method === 'POST' ? await readJsonBody(req) : null;
-    const rows = Array.isArray(body?.rows) ? body.rows.slice(0, 5000) : [];
-    if (!rows.length) {
+    const manual = Array.isArray(body?.rows) ? body.rows.slice(0, 5000) : [];
+    const supabase = getSupabase();
+
+    if (manual.length) {
+      const result = await upsertUsageDaily(supabase, manual);
+      return json(res, 200, { ok: true, configured: true, mode: 'upsert', rows_upserted: result.rows });
+    }
+
+    if (req.method === 'POST') {
       return json(res, 200, {
         ok: true,
         configured: true,
-        mode: 'stub',
+        mode: 'upsert',
         rows_upserted: 0,
         property_id: cfg.propertyId,
-        message:
-          'Credenciais GA presentes. O fetch da Data API ainda não roda neste release; POST { rows } grava fact_product_usage_daily.',
       });
     }
 
-    const supabase = getSupabase();
-    const result = await upsertUsageDaily(supabase, rows);
-    return json(res, 200, { ok: true, configured: true, mode: 'upsert', rows_upserted: result.rows });
+    const fetched = await fetchGaUsage(cfg);
+    let rowsUpserted = 0;
+    for (const chunk of chunkRows(fetched.rows)) {
+      const result = await upsertUsageDaily(supabase, chunk);
+      rowsUpserted += result.rows;
+    }
+    return json(res, 200, {
+      ok: true,
+      configured: true,
+      mode: 'fetch',
+      rows_upserted: rowsUpserted,
+      property_id: cfg.propertyId,
+      feature_mode: fetched.featureMode,
+    });
   } catch (err) {
     console.error('bi/sync/ga:', err);
     return json(res, 500, { ok: false, error: err.message || 'Erro interno' });

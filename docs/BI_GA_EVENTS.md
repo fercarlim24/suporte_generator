@@ -1,6 +1,6 @@
 # Eventos GA4 — contrato para o Product Pulse
 
-O sync de GA grava `fact_product_usage_daily` (grão: dia × evento × feature × tenant). Enquanto o fetch da Data API não estiver ligado, a rota `POST /api/bi/sync/ga` aceita `{ "rows": [...] }` no mesmo formato, se as variáveis `GA_*` existirem.
+O sync de GA grava `fact_product_usage_daily` (grão: dia × evento × feature × tenant). Com `GA_PROPERTY_ID`, `GA_CLIENT_EMAIL` e `GA_PRIVATE_KEY`, `GET /api/bi/sync/ga` busca os últimos 6 meses na Data API e faz o upsert. O cron horário da Vercel chama a mesma rota com `Authorization: Bearer CRON_SECRET`. `POST { "rows": [...] }` continua aceito para carga manual.
 
 Parâmetros de evento no OS2 (custom dimensions / event params):
 
@@ -43,5 +43,6 @@ Parâmetros de evento no OS2 (custom dimensions / event params):
 ## O que a UI lê
 
 - Pulse / aba Uso: `mart_product_pulse` (`mau_proxy` soma `session_start` e `user_engagement`; `feature_events` soma `feature_use`)
-- Aba Uso, bloco de features: `mart_feature_health` (`feature_use`, `page_view`, `error_shown`)
-- Sem `GA_PROPERTY_ID` + `GA_CLIENT_EMAIL` + `GA_PRIVATE_KEY`, a aba mostra o empty state “GA não configurado”
+- O fetch grava o MAU como uma linha `session_start` no dia 1 do mês, com `users` = active users daquele mês. Assim a soma do mart acompanha o cartão de usuários ativos do GA, em vez de somar usuários de cada dia.
+- Aba Uso, bloco de features: `mart_feature_health` (`feature_use`, `page_view`, `error_shown`). Se a property não tiver `feature_key`, o sync usa o `event_name` no lugar.
+- Sem `GA_PROPERTY_ID` + `GA_CLIENT_EMAIL` + `GA_PRIVATE_KEY`, a rota responde `{ "ok": false, "reason": "not_configured" }` e a aba mostra o empty state

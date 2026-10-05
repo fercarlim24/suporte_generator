@@ -1,3 +1,4 @@
+import { syncGa } from './api.js';
 import { getState, hrefFor, periodChoices, setState, shiftMonth } from './app-state.js';
 import { loadProductPulse } from './bi.js';
 import { refreshNavBadges } from './home.js';
@@ -16,6 +17,9 @@ const TABS = [
 
 let sprintFilter = '';
 let cloudExtras = { ga: null, metabase: null };
+let syncing = false;
+let syncError = '';
+let pulseLoadId = 0;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -70,8 +74,8 @@ function seg(name, options, selected, onChange) {
     input.name = name;
     input.value = value;
     input.checked = value === selected;
-    input.addEventListener('change', () => {
-      if (input.checked) onChange(value);
+    input.addEventListener('change', async () => {
+      if (input.checked) await onChange(value);
     });
     option.append(input, document.createTextNode(label));
     wrap.append(option);
@@ -125,6 +129,65 @@ function pushRoute() {
   else renderPulse();
 }
 
+function syncButton() {
+  const button = el('button', 'btn btn-secondary', syncing ? 'Sincronizando…' : 'Sincronizar GA');
+  button.type = 'button';
+  button.disabled = syncing || hasCloudHost() === false;
+  button.addEventListener('click', () => {
+    refreshGa();
+  });
+  return button;
+}
+
+function gaBanner() {
+  const banner = el('div', 'banner');
+  const copy = el('div');
+  copy.append(el('p', '', 'Conecte o Google Analytics para ver MAU, uso por feature e tickets por MAU'));
+  if (syncError) copy.append(el('p', 'sub', syncError));
+  banner.append(copy);
+  const actions = el('div', 'report-actions');
+  actions.append(syncButton());
+  const usage = el('button', 'btn btn-ghost', 'Ver uso');
+  usage.type = 'button';
+  usage.addEventListener('click', () => {
+    setState({ pulseTab: 'uso' });
+    pushRoute();
+  });
+  actions.append(usage);
+  banner.append(actions);
+  return banner;
+}
+
+async function refreshGa() {
+  if (syncing) return;
+  if (hasCloudHost() === false) {
+    syncError = 'Sem nuvem neste ambiente.';
+    renderPulse();
+    return;
+  }
+  const request = pulseLoadId;
+  syncing = true;
+  syncError = '';
+  renderPulse();
+  try {
+    const result = await syncGa();
+    if (request !== pulseLoadId) return;
+    if (result?.reason === 'not_configured') syncError = 'Google Analytics não configurado no servidor.';
+    else if (result?.ok === false) syncError = result.error || 'Falha ao sincronizar o Google Analytics.';
+  } catch (err) {
+    if (request !== pulseLoadId) return;
+    syncError = err.message || 'Falha ao sincronizar o Google Analytics.';
+  } finally {
+    syncing = false;
+  }
+  if (request !== pulseLoadId) return;
+  const { period, product } = getState();
+  const extras = await loadCloudExtras(period, product || 'OS2');
+  if (request !== pulseLoadId) return;
+  cloudExtras = extras;
+  renderPulse();
+}
+
 function renderPulsePanel(pulse, product) {
   const panel = el('div');
   const kpis = el('div', 'pulse-kpis');
@@ -134,16 +197,7 @@ function renderPulsePanel(pulse, product) {
   panel.append(kpis);
 
   if (!pulse.freshness.find((item) => item.source === 'GA')?.ok) {
-    const banner = el('div', 'banner');
-    banner.append(el('p', '', 'Conecte o Google Analytics para ver MAU, uso por feature e tickets por MAU'));
-    const button = el('button', 'btn btn-secondary', 'Ver uso');
-    button.type = 'button';
-    button.addEventListener('click', () => {
-      setState({ pulseTab: 'uso' });
-      pushRoute();
-    });
-    banner.append(button);
-    panel.append(banner);
+    panel.append(gaBanner());
   }
 
   const charts = el('div', 'chart-grid');
@@ -248,11 +302,7 @@ function suportePanel(pulse) {
 }
 
 function usoPanel(pulse) {
-  if (!pulse.freshness.find((item) => item.source === 'GA')?.ok) {
-    const banner = el('div', 'banner');
-    banner.append(el('p', '', 'Conecte o Google Analytics para ver MAU, uso por feature e tickets por MAU'));
-    return banner;
-  }
+  if (!pulse.freshness.find((item) => item.source === 'GA')?.ok) return gaBanner();
   if (!pulse.features.length) {
     return el('p', 'sub', 'GA conectado, sem uso por feature neste recorte.');
   }
@@ -374,10 +424,10 @@ export function renderPulse() {
   const row = el('div', 'head-row');
   row.append(el('h2', '', `Como está o ${product} em ${monthTitle(period)}?`));
   const filters = el('div', 'filters');
-  filters.append(seg('pulse-period', periodChoices(period).map((key) => [key, monthShort(key)]), period, (value) => {
+  filters.append(seg('pulse-period', periodChoices(period).map((key) => [key, monthShort(key)]), period, async (value) => {
     setState({ period: value });
     refreshNavBadges();
-    openAnalyticsScreen();
+    await openAnalyticsScreen();
   }));
   filters.append(seg('pulse-product', [['OS2', 'OS2'], ['FORE', 'FORE']], product, (value) => {
     setState({ product: value, screen: 'pulse' });
@@ -395,8 +445,12 @@ export function renderPulse() {
     renderPulse();
   });
   filters.append(sprint);
+  filters.append(syncButton());
   row.append(filters);
   head.append(row);
+  if (syncError && pulse.freshness.find((item) => item.source === 'GA')?.ok) {
+    head.append(el('p', 'sub', syncError));
+  }
   root.append(head);
 
   if (hasCloudHost() === false) {
@@ -443,11 +497,16 @@ async function loadCloudExtras(period, product) {
   }
 }
 
-export async function openAnalyticsScreen() {
+export async function openAnalyticsScreen({ sync = false } = {}) {
+  const request = ++pulseLoadId;
   await renderSync();
+  if (request !== pulseLoadId) return;
   const { period, product } = getState();
-  cloudExtras = await loadCloudExtras(period, product || 'OS2');
+  const extras = await loadCloudExtras(period, product || 'OS2');
+  if (request !== pulseLoadId) return;
+  cloudExtras = extras;
   renderPulse();
+  if (sync && hasCloudHost() === true && request === pulseLoadId) await refreshGa();
 }
 
 export function initAnalytics() {

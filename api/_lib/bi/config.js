@@ -1,10 +1,20 @@
+export function normalizePrivateKey(raw) {
+  let key = String(raw || '').trim();
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1);
+  }
+  return key.replace(/\\n/g, '\n').trim();
+}
+
 export function gaConfig(env = process.env) {
   const propertyId = env.GA_PROPERTY_ID?.trim() || '';
   const clientEmail = env.GA_CLIENT_EMAIL?.trim() || '';
-  const privateKey = env.GA_PRIVATE_KEY?.trim() || '';
+  const privateKey = normalizePrivateKey(env.GA_PRIVATE_KEY);
   return {
     configured: Boolean(propertyId && clientEmail && privateKey),
     propertyId: propertyId || null,
+    clientEmail: clientEmail || null,
+    privateKey: privateKey || null,
   };
 }
 

@@ -130,7 +130,7 @@ Credenciais (`GA_*`, `METABASE_*`, `REPORTS_PII_SALT`) só no servidor — [`doc
 1. Rodar `schema.sql` e depois `schema_bi.sql` no Supabase  
 2. ETL no save: suporte/horas/op → fatos (feito em `POST /api/reports`)  
 3. Tela Product Pulse lê `mart_product_pulse`, com fallback no histórico local  
-4. Sync GA4 — rota pronta, fetch remoto ainda stub  
+4. Sync GA4 — `GET /api/bi/sync/ga` busca a Data API e grava `fact_product_usage_daily`  
 5. Sync Metabase / ops — idem  
 6. Feature e tenant health — as rotas leem os marts; ficam vazias até o sync  
 

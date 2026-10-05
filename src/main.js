@@ -84,13 +84,20 @@ function boot() {
   initOp();
   initHistory().finally(() => renderSync());
   initAnalytics();
+  let lastScreen = null;
   startShell((state) => {
     window.scrollTo(0, 0);
     refreshNavBadges();
     if (state.screen === 'inicio') renderHome();
     if (state.screen === 'horas') syncHorasToPeriod(state.period);
     if (state.screen === 'hist') openHistoryScreen();
-    if (state.screen === 'pulse') openAnalyticsScreen();
+    if (state.screen === 'pulse') {
+      const entered = lastScreen !== 'pulse';
+      lastScreen = 'pulse';
+      openAnalyticsScreen({ sync: entered });
+    } else {
+      lastScreen = state.screen;
+    }
   });
 
   const opData = document.getElementById('op-data');

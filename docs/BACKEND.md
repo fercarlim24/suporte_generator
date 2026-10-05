@@ -97,7 +97,7 @@ Rotas (mesmo header `x-api-key` de `/api/reports`):
 | GET/POST | `/api/bi/sync/ga` |
 | GET/POST | `/api/bi/sync/metabase` |
 
-Sem as credenciais, os syncs respondem `{ "ok": false, "reason": "not_configured" }`. Com credenciais, o fetch remoto ainda não roda; `POST` com `{ "rows": [...] }` grava `fact_product_usage_daily` ou `fact_business_daily`.
+Sem as credenciais, os syncs respondem `{ "ok": false, "reason": "not_configured" }`. Com `GA_*`, `GET /api/bi/sync/ga` busca a Data API e grava `fact_product_usage_daily`. `POST` com `{ "rows": [...] }` continua para carga manual. O cron horário em `vercel.json` chama essa rota; a Vercel envia `Authorization: Bearer CRON_SECRET` quando a variável existe. O Metabase, com credenciais, ainda não busca o remoto: `POST` com `{ "rows": [...] }` grava `fact_business_daily`.
 
 GitHub Pages não serve `/api`. O Pulse na Pages usa o histórico local e deixa GA/Metabase vazios.
 
@@ -107,4 +107,5 @@ GitHub Pages não serve `/api`. O Pulse na Pages usa o histórico local e deixa 
 |----------|-----|
 | `REPORTS_PII_SALT` | Salt do hash de e-mail |
 | `GA_PROPERTY_ID`, `GA_CLIENT_EMAIL`, `GA_PRIVATE_KEY` | GA4 (servidor) |
+| `CRON_SECRET` | Bearer do cron da Vercel em `/api/bi/sync/ga` |
 | `METABASE_URL`, `METABASE_API_KEY`, `METABASE_DATABASE_ID` | Metabase (servidor) |

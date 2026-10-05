@@ -1,7 +1,6 @@
 import { mapHorasEffort, mapOnePager } from './bi/facts.js';
 import { CAT_ORDER } from './config.js';
 import { histGetAll } from './history.js';
-import { getEntryReportMonth } from './report-period.js';
 import { entryInScope } from './report-scope.js';
 
 const RAG_LABELS = ['No prazo', 'Atenção', 'Bloqueado', 'N/A'];
@@ -171,10 +170,7 @@ export function getPulse({ product = 'OS2', period, entries, ga, metabase } = {}
   const month = period || new Date().toISOString().slice(0, 7);
   const currentEntries = scoped(list, product, month);
   const suporte = latest(currentEntries, 'suporte');
-  const horasEntry = latest(
-    list.filter((entry) => entry.type === 'horas' && entry.version === 2 && getEntryReportMonth(entry) === month),
-    'horas',
-  );
+  const horasEntry = latest(currentEntries, 'horas');
   const op = latest(currentEntries, 'op');
   const support = supportOf(suporte, product);
   const hours = hoursBundle(horasEntry);

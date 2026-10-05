@@ -103,6 +103,37 @@ describe('getPulse from saved reports', () => {
     expect(pulse.freshness.find((item) => item.source === 'GA').ok).toBe(false);
   });
 
+  it('keeps hours from another product out of the open one', () => {
+    const os2Hours = {
+      ...horas,
+      id: 4,
+      savedAt: '2026-09-01T12:00:00.000Z',
+      payload: {
+        meta: { reportMonth: '2026-09' },
+        rows: [{ sem: '1', sis: 'OS2', cat: 'BUG', mins: 180 }],
+      },
+    };
+    const foreHours = {
+      ...horas,
+      id: 5,
+      savedAt: '2026-09-29T12:00:00.000Z',
+      payload: {
+        meta: { reportMonth: '2026-09' },
+        rows: [{ sem: '1', sis: 'FORE', cat: 'SUPORTE', mins: 60 }],
+      },
+    };
+    const os2 = getPulse({
+      product: 'OS2',
+      period: '2026-09',
+      entries: [os2Hours, foreHours],
+      ga: null,
+      metabase: null,
+    });
+    expect(os2.kpis.devHours).toMatchObject({ value: 3, sub: '100% bugfix' });
+    expect(os2.effort.find((row) => row.category === 'BUG')).toMatchObject({ os2: 180, fore: 0 });
+    expect(os2.effort.find((row) => row.category === 'SUPORTE')).toBeUndefined();
+  });
+
   it('uses FORE tickets when that product is selected', () => {
     const fore = getPulse({
       product: 'FORE',
